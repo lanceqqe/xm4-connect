@@ -307,16 +307,13 @@ The app icon is drawn by `scripts/render_icon.py` (Pillow + NumPy). The generate
 
 ### Releasing
 
-```bash
-git tag v1.1.0
-git push origin v1.1.0
-```
+Bump `CFBundleShortVersionString` in `Resources/Info.plist` (for example to `1.2.0`) and push to `main`. Pushing a `v1.2.0` tag works too.
 
-The [release workflow](.github/workflows/release.yml) then:
+When `main` carries a version that has no release yet, the [release workflow](.github/workflows/release.yml):
 1. runs the tests;
 2. builds the universal app, zip, installer and disk image;
 3. signs and notarizes them if the secrets are set;
-4. computes the checksums, attests the build provenance and publishes the GitHub release.
+4. computes the checksums, attests the build provenance and publishes the GitHub release, creating the `vX.Y.Z` tag.
 
 ## Contributing
 
