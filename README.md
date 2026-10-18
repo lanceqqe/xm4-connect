@@ -11,7 +11,6 @@
 <p align="center">
   <a href="#install"><b>Install</b></a> ·
   <a href="#features">Features</a> ·
-  <a href="#why-macos-may-warn-you-and-how-to-avoid-it">About the macOS warning</a> ·
   <a href="#troubleshooting">Troubleshooting</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#build-from-source">Build from source</a>
@@ -23,6 +22,12 @@
   <img alt="Swift" src="https://img.shields.io/badge/Swift-5.9%2B-F05138?logo=swift&logoColor=white">
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue">
   <img alt="Languages" src="https://img.shields.io/badge/UI-English%20%7C%20Fran%C3%A7ais-6C63FF">
+</p>
+
+<p align="center">
+  <img src="docs/screenshot.png" width="360" alt="XM Connect panel: 3D headset in noise cancelling mode and the equalizer">
+  &nbsp;&nbsp;
+  <img src="docs/menubar.png" width="380" alt="XM Connect opened from the macOS menu bar">
 </p>
 
 ---
@@ -87,7 +92,7 @@ curl -fsSL https://raw.githubusercontent.com/omidkrm/xm-connect/main/install.sh 
 3. copies *XM Connect* into `/Applications`;
 4. opens it.
 
-Because the file is downloaded by `curl` rather than a web browser, macOS does not mark it as "downloaded from the internet", so **no "unidentified developer" warning appears**. See [why](#why-macos-may-warn-you-and-how-to-avoid-it).
+Installed this way, macOS opens the app without any warning.
 
 ### Option 2 — Installer or disk image
 
@@ -96,7 +101,7 @@ Download from the [**latest release**](https://github.com/omidkrm/xm-connect/rel
 - **`XM-Connect-Installer.pkg`**: a standard macOS installer, in English and French. It installs into Applications and opens the app when done.
 - **`XM-Connect.dmg`**: drag *XM Connect* into *Applications*.
 
-If the release is not notarized (see below), macOS stops it the first time. Allow it once:
+XM Connect is not verified by Apple as coming from a registered developer, so macOS stops it the first time. Allow it once:
 
 - **macOS 15 Sequoia and newer**:
   1. Open the file and click **Done** on the warning.
@@ -116,24 +121,13 @@ make install                      # builds and copies "XM Connect.app" to /Appli
 open "/Applications/XM Connect.app"
 ```
 
-An app you build on your own Mac is never quarantined, so there is no warning. See [Build from source](#build-from-source) for more.
+See [Build from source](#build-from-source) for more.
 
 ### First launch
 
 1. Look for the **headphones icon** in the menu bar. There is no Dock icon and no window.
 2. **Allow Bluetooth** when macOS asks. Without it, the app cannot talk to the headphones.
 3. Make sure your headphones are **connected** to this Mac, not just paired. Connect them in *System Settings › Bluetooth* or from Control Center. The app picks them up within a few seconds.
-
-### Verify what you downloaded
-
-Every release is built by [GitHub Actions](.github/workflows/release.yml) from the tagged commit, not on anyone's Mac. Each release ships with its SHA-256 and a signed **build-provenance attestation**:
-
-```bash
-shasum -a 256 -c XM-Connect-Installer.pkg.sha256
-gh attestation verify XM-Connect-Installer.pkg --repo omidkrm/xm-connect
-```
-
-The second command proves the file was built by this repository's workflow, and shows from which commit.
 
 ### Uninstall
 
@@ -143,36 +137,6 @@ Quit the app (right-click the menu bar icon › **Quit XM Connect**), then delet
 defaults delete app.xmconnect.mac
 rm -rf ~/Library/Logs/XM\ Connect
 ```
-
-## Why macOS may warn you, and how to avoid it
-
-macOS checks apps with **Gatekeeper**. When a file is downloaded **by a web browser**, macOS attaches a "quarantine" flag to it. On first launch, Gatekeeper then checks two things:
-
-1. **Is the app signed with an Apple Developer ID certificate?** That certificate costs $99/year and carries the developer's legal name in every copy of the app.
-2. **Has Apple notarized it?** Notarization is an automated malware scan by Apple.
-
-If either is missing, macOS shows *"Apple could not verify XM Connect…"* or *"unidentified developer"*. That message means "not signed by a paid Apple developer". It does not mean "malware".
-
-**What XM Connect does about it:**
-
-| Way to install | Warning? | Why |
-| --- | --- | --- |
-| `install.sh` (Option 1) | **No** | `curl` does not quarantine files; the script verifies the release checksum instead |
-| Build from source (Option 3) | **No** | Apps you compile yourself are never quarantined |
-| `.pkg` / `.dmg` from the browser, **notarized release** | **No** | Signed with Developer ID and notarized by Apple |
-| `.pkg` / `.dmg` from the browser, **un-notarized release** | **Once** | Allow it with *Open Anyway* ([steps](#option-2--installer-or-disk-image)) |
-
-**For maintainers — shipping fully notarized releases.** The release workflow already signs, notarizes and staples everything when these repository secrets are set (*Settings › Secrets and variables › Actions*):
-
-| Secret | Value |
-| --- | --- |
-| `MACOS_CERTIFICATE` | Base64 of a `.p12` holding both **Developer ID Application** and **Developer ID Installer** certificates (`base64 -i certs.p12 \| pbcopy`) |
-| `MACOS_CERTIFICATE_PASSWORD` | Password of that `.p12` |
-| `APPLE_ID` | Apple ID email of the developer account |
-| `APPLE_TEAM_ID` | 10-character Team ID |
-| `APPLE_APP_PASSWORD` | App-specific password from [appleid.apple.com](https://appleid.apple.com) |
-
-With those in place, every downloaded file opens with no warning at all, whichever way it is installed. Without them, releases are signed ad hoc and Options 1 and 3 remain warning-free.
 
 ## Usage
 
@@ -221,7 +185,7 @@ open "/Applications/XM Connect.app" --args --demo
 | Controls work on the phone but not on the Mac | Multipoint: make sure the headphones are actively connected to the Mac too |
 | A setting jumps back | The headphones rejected it; the app re-reads their state so it never shows a value they do not have. Please open an issue with the log |
 | Pause when taken off does nothing | Open the log and look for the lines starting with `Table 2:`, `Capabilities:` and `Table-2 event:`; include them in an issue |
-| macOS says the app is damaged or can't be verified | Install with [Option 1](#option-1--one-line-in-terminal-recommended), or allow it once with *Open Anyway* |
+| macOS says the app can't be verified | Install with [Option 1](#option-1--one-line-in-terminal-recommended), or allow it once with *Open Anyway* ([steps](#option-2--installer-or-disk-image)) |
 
 The log is at `~/Library/Logs/XM Connect/app.log`; open it from **⋯ › Open the log**. It contains the raw protocol traffic, which is the most useful thing to attach to a bug report.
 
@@ -294,13 +258,6 @@ You need the **Xcode Command Line Tools** (`xcode-select --install`). The full X
 | `make zip` | `build/XM-Connect-macos.zip` (what `install.sh` downloads) |
 | `make clean` | Remove `build/` |
 
-To sign with your own certificate:
-
-```bash
-make pkg SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
-         INSTALLER_IDENTITY="Developer ID Installer: Your Name (TEAMID)"
-```
-
 `Package.swift` is there so you can browse and edit the code in Xcode. Run the real app with `make`, though: macOS only shows the Bluetooth prompt for a proper `.app` bundle with its `Info.plist`.
 
 The app icon is drawn by `scripts/render_icon.py` (Pillow + NumPy). The generated PNGs are committed, so Python is not needed to build.
@@ -312,8 +269,7 @@ Bump `CFBundleShortVersionString` in `Resources/Info.plist` (for example to `1.2
 When `main` carries a version that has no release yet, the [release workflow](.github/workflows/release.yml):
 1. runs the tests;
 2. builds the universal app, zip, installer and disk image;
-3. signs and notarizes them if the secrets are set;
-4. computes the checksums, attests the build provenance and publishes the GitHub release, creating the `vX.Y.Z` tag.
+3. publishes them as a GitHub release, creating the `vX.Y.Z` tag.
 
 ## Contributing
 
