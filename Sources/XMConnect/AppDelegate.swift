@@ -23,7 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuBar = MenuBarController(model: model, settings: settings)
 
         demoObserver = NotificationCenter.default.addObserver(
-            forName: .auraToggleDemo, object: nil, queue: .main
+            forName: .toggleDemo, object: nil, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in self?.toggleDemo() }
         }

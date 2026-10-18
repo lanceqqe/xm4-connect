@@ -23,7 +23,7 @@ struct PanelView: View {
 
     var body: some View {
         ZStack {
-            AuraBackground(look: look, animating: state.isVisible && !settings.reduceMotion)
+            AppBackground(look: look, animating: state.isVisible && !settings.reduceMotion)
 
             VStack(spacing: 0) {
                 header
@@ -166,7 +166,7 @@ struct PanelView: View {
             Spacer()
             Menu {
                 Button(model.isDemo ? L("Use the real headphones", "Utiliser le vrai casque") : L("Demo mode", "Mode démo")) {
-                    NotificationCenter.default.post(name: .auraToggleDemo, object: nil)
+                    NotificationCenter.default.post(name: .toggleDemo, object: nil)
                 }
                 Button(L("Open the log", "Ouvrir le journal")) {
                     NSWorkspace.shared.open(URL(fileURLWithPath: Log.path))
@@ -199,7 +199,7 @@ struct PanelView: View {
 }
 
 extension Notification.Name {
-    static let auraToggleDemo = Notification.Name("XMConnectToggleDemo")
+    static let toggleDemo = Notification.Name("XMConnectToggleDemo")
 }
 
 /// Pulsing connection dot.
@@ -228,7 +228,7 @@ struct StatusDot: View {
 }
 
 /// Dark glass with slowly drifting, blurred colour blobs tinted by the current mode.
-struct AuraBackground: View {
+struct AppBackground: View {
     var look: ListeningLook
     var animating: Bool
 

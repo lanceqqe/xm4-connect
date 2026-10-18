@@ -177,7 +177,7 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func toggleDemo() {
-        NotificationCenter.default.post(name: .auraToggleDemo, object: nil)
+        NotificationCenter.default.post(name: .toggleDemo, object: nil)
     }
 
     @objc private func toggleLaunchAtLogin() { settings.launchAtLogin.toggle() }
