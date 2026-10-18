@@ -116,6 +116,13 @@ jobs:
             build/release/XM-Connect-Installer.pkg
             build/release/XM-Connect.dmg
 
+      # One-off cleanup: v1.1.0 was built from history that was later rewritten.
+      - name: Remove superseded v1.1.0 release
+        if: steps.version.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete v1.1.0 --cleanup-tag --yes --repo "$GITHUB_REPOSITORY" || true
+
       - uses: softprops/action-gh-release@v2
         if: steps.version.outputs.release == 'true'
         with:
