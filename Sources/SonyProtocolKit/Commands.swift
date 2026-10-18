@@ -1,0 +1,224 @@
+import Foundation
+
+// Sony "MDR" protocol, version 2 / table 1 — the protocol the Sony Sound Connect app speaks to
+// WH-1000XM5-class headphones over Bluetooth RFCOMM.
+//
+// The core (noise control, EQ, battery, power off) is ported from sony-tray
+// (github.com/abhiinhii/sony-tray, MIT), which was verified on a WH-1000XM5. The extra options
+// (Speak-to-Chat, DSEE Extreme, pause on removal, auto power off) follow the message layouts
+// published in SonyHeadphonesClient (github.com/mos9527/SonyHeadphonesClient, MIT,
+// libmdr/include/mdr/ProtocolV2T1.hpp). Every extra command is only sent when the headset
+// announces the matching function id in its support-function reply.
+
+public enum NcAmbMode: Sendable, Hashable {
+    case off
+    case noiseCancelling
+    case ambient
+}
+
+/// Open enumeration: an unknown preset id from the device still round-trips instead of being
+/// dropped, so this is a RawRepresentable struct rather than an enum.
+public struct EqPreset: RawRepresentable, Hashable, Comparable, Sendable {
+    public let rawValue: UInt8
+    public init(rawValue: UInt8) { self.rawValue = rawValue }
+
+    public static func < (lhs: EqPreset, rhs: EqPreset) -> Bool { lhs.rawValue < rhs.rawValue }
+
+    public static let off = EqPreset(rawValue: 0x00)
+    public static let bright = EqPreset(rawValue: 0x10)
+    public static let excited = EqPreset(rawValue: 0x11)
+    public static let mellow = EqPreset(rawValue: 0x12)
+    public static let relaxed = EqPreset(rawValue: 0x13)
+    public static let vocal = EqPreset(rawValue: 0x14)
+    public static let trebleBoost = EqPreset(rawValue: 0x15)
+    public static let bassBoost = EqPreset(rawValue: 0x16)
+    public static let speech = EqPreset(rawValue: 0x17)
+    public static let manual = EqPreset(rawValue: 0xA0)
+    public static let custom1 = EqPreset(rawValue: 0xA1)
+    public static let custom2 = EqPreset(rawValue: 0xA2)
+}
+
+public enum ChargingStatus: UInt8, Sendable {
+    case notCharging = 0
+    case charging = 1
+    case unknown = 2
+    case charged = 3
+}
+
+/// NcAsm wire variants a device may announce via its support-function reply (fn id → variant):
+/// 0x6B → dualSeamless, 0x6D → dualSeamlessNoiseAdaptive, 0x67 → asmSeamless.
+public enum NcAmbVariant: UInt8, Sendable {
+    /// The WH-1000XM5's variant.
+    case dualSeamless = 0x17
+    /// Adds noise-adaptive fields.
+    case dualSeamlessNoiseAdaptive = 0x19
+    /// Ambient-only devices (no NC mode).
+    case asmSeamless = 0x22
+}
+
+public enum BatteryKind: UInt8, Sendable {
+    case single = 0x00
+    case leftRight = 0x01
+    case cradle = 0x02
+}
+
+/// Auto power off timer. Raw values are the device's `AutoPowerOffElements` /
+/// `AutoPowerOffWearingDetectionElements` bytes.
+public struct AutoPowerOff: RawRepresentable, Hashable, Sendable {
+    public let rawValue: UInt8
+    public init(rawValue: UInt8) { self.rawValue = rawValue }
+
+    public static let after5Minutes = AutoPowerOff(rawValue: 0x00)
+    public static let after15Minutes = AutoPowerOff(rawValue: 0x04)
+    public static let after30Minutes = AutoPowerOff(rawValue: 0x01)
+    public static let after60Minutes = AutoPowerOff(rawValue: 0x02)
+    public static let after180Minutes = AutoPowerOff(rawValue: 0x03)
+    /// Only on headsets with wearing detection.
+    public static let whenTakenOff = AutoPowerOff(rawValue: 0x10)
+    public static let never = AutoPowerOff(rawValue: 0x11)
+}
+
+public enum CommandError: Error, Equatable {
+    case valueOutOfRange(name: String, value: Int, min: Int, max: Int)
+    case bandCountMismatch(expected: Int, actual: Int)
+}
+
+/// Support-function ids (table 1) this app understands.
+public enum FunctionID {
+    public static let batterySingle: UInt8 = 0x20
+    public static let batteryLeftRight: UInt8 = 0x21
+    public static let batteryCradle: UInt8 = 0x22
+    public static let powerOff: UInt8 = 0x23
+    public static let autoPowerOff: UInt8 = 0x24
+    public static let autoPowerOffWearingDetection: UInt8 = 0x25
+    public static let batterySingleThreshold: UInt8 = 0x28
+    public static let batteryLeftRightThreshold: UInt8 = 0x29
+    public static let batteryCradleThreshold: UInt8 = 0x2A
+    public static let presetEq: UInt8 = 0x50
+    public static let presetEqNonCustomizable: UInt8 = 0x52
+    public static let presetEqErrorCode: UInt8 = 0x57
+    public static let ncAsmAmbientOnly: UInt8 = 0x67
+    public static let ncAsmDual: UInt8 = 0x6B
+    public static let ncAsmDualNoiseAdaptive: UInt8 = 0x6D
+    public static let upscalingAutoOff: UInt8 = 0xE2
+    public static let playbackControlByWearing: UInt8 = 0xF1
+    public static let wearingStatusDetector: UInt8 = 0xF6
+    public static let speakToChatType2: UInt8 = 0xFC
+}
+
+/// Table-1 command payload builders.
+public enum Commands {
+    // OnOffSettingValue on the wire: ON = 0x00, OFF = 0x01.
+    private static func onOff(_ on: Bool) -> UInt8 { on ? 0x00 : 0x01 }
+
+    public static func getProtocolInfo() -> [UInt8] { [0x00, 0x00] }
+
+    // CONNECT_GET_SUPPORT_FUNCTION(0x06), FIXED_VALUE(0x00)
+    public static func getSupportFunctions() -> [UInt8] { [0x06, 0x00] }
+
+    public static func getNcAmb(_ variant: NcAmbVariant) -> [UInt8] { [0x66, variant.rawValue] }
+    public static func getEqStatus() -> [UInt8] { [0x52, 0x00] }
+    public static func getEq() -> [UInt8] { [0x56, 0x00] }
+    public static func getBattery(_ kind: BatteryKind, withThreshold: Bool = false) -> [UInt8] {
+        [0x22, kind.rawValue + (withThreshold ? 0x08 : 0)]
+    }
+
+    // POWER_SET_STATUS(0x24), POWER_OFF(0x03), USER_POWER_OFF(0x01)
+    public static func powerOff() -> [UInt8] { [0x24, 0x03, 0x01] }
+
+    public static func setNcAmb(
+        _ variant: NcAmbVariant,
+        mode: NcAmbMode,
+        ambientLevel: Int,
+        focusOnVoice: Bool
+    ) throws -> [UInt8] {
+        try validate(ambientLevel, name: "ambientLevel", min: 0, max: 20)
+        let effect: UInt8 = mode == .off ? 0 : 1
+        let level = UInt8(ambientLevel)
+        // 0x01 = ValueChangeStatus::CHANGED
+        switch variant {
+        case .asmSeamless:
+            let voice: UInt8 = mode == .ambient && focusOnVoice ? 1 : 0
+            return [0x68, variant.rawValue, 0x01, effect, voice, level]
+        case .dualSeamlessNoiseAdaptive:
+            let asmMode: UInt8 = mode == .ambient ? 1 : 0
+            let voice: UInt8 = mode == .ambient && focusOnVoice ? 1 : 0
+            // Trailing [00,00] = noise adaptive OFF, sensitivity STANDARD.
+            return [0x68, variant.rawValue, 0x01, effect, asmMode, voice, level, 0x00, 0x00]
+        case .dualSeamless:
+            let asmMode: UInt8 = mode == .ambient ? 1 : 0
+            let voice: UInt8 = mode == .ambient && focusOnVoice ? 1 : 0
+            return [0x68, variant.rawValue, 0x01, effect, asmMode, voice, level]
+        }
+    }
+
+    public static func setEqPreset(_ preset: EqPreset) -> [UInt8] {
+        [0x58, 0x00, preset.rawValue, 0x00]
+    }
+
+    /// 6-band devices (XM5-class): Clear Bass + 5 bands, wire offset +10, range −10…+10.
+    public static func setEqBands(_ preset: EqPreset, clearBass: Int, bands: [Int]) throws -> [UInt8] {
+        guard bands.count == 5 else {
+            throw CommandError.bandCountMismatch(expected: 5, actual: bands.count)
+        }
+        try validate(clearBass, name: "clearBass", min: -10, max: 10)
+        for band in bands { try validate(band, name: "band", min: -10, max: 10) }
+        return [
+            0x58, 0x00, preset.rawValue, 0x06,
+            UInt8(clearBass + 10),
+            UInt8(bands[0] + 10), UInt8(bands[1] + 10), UInt8(bands[2] + 10),
+            UInt8(bands[3] + 10), UInt8(bands[4] + 10),
+        ]
+    }
+
+    /// 10-band devices: no Clear Bass, wire offset +6, range −6…+6.
+    public static func setEqBands10(_ preset: EqPreset, bands: [Int]) throws -> [UInt8] {
+        guard bands.count == 10 else {
+            throw CommandError.bandCountMismatch(expected: 10, actual: bands.count)
+        }
+        for band in bands { try validate(band, name: "band", min: -6, max: 6) }
+        var result: [UInt8] = [0x58, 0x00, preset.rawValue, 0x0A]
+        for band in bands { result.append(UInt8(band + 6)) }
+        return result
+    }
+
+    // MARK: - XM5 options
+
+    // SYSTEM_GET_PARAM(0xF6) / SYSTEM_SET_PARAM(0xF8), SMART_TALKING_MODE_TYPE2(0x0C)
+    // Set layout: [cmd, type, onOff, previewModeOnOff]; preview mode is always OFF.
+    public static func getSpeakToChat() -> [UInt8] { [0xF6, 0x0C] }
+    public static func setSpeakToChat(_ enabled: Bool) -> [UInt8] {
+        [0xF8, 0x0C, onOff(enabled), onOff(false)]
+    }
+
+    // SYSTEM_*_PARAM, PLAYBACK_CONTROL_BY_WEARING(0x01): pause when the headset is taken off.
+    public static func getAutoPause() -> [UInt8] { [0xF6, 0x01] }
+    public static func setAutoPause(_ enabled: Bool) -> [UInt8] { [0xF8, 0x01, onOff(enabled)] }
+
+    // AUDIO_GET_PARAM(0xE6) / AUDIO_SET_PARAM(0xE8), UPSCALING(0x01): DSEE Extreme.
+    // UpscalingTypeAutoOff: OFF = 0x00, AUTO = 0x01.
+    public static func getDsee() -> [UInt8] { [0xE6, 0x01] }
+    public static func setDsee(_ enabled: Bool) -> [UInt8] { [0xE8, 0x01, enabled ? 0x01 : 0x00] }
+
+    // POWER_GET_PARAM(0x26) / POWER_SET_PARAM(0x28), AUTO_POWER_OFF(0x04) or
+    // AUTO_POWER_OFF_WEARING_DETECTION(0x05). Set layout: [cmd, type, current, lastSelected];
+    // lastSelected mirrors the reference client (5 minutes).
+    public static func getAutoPowerOff(wearingDetection: Bool) -> [UInt8] {
+        [0x26, wearingDetection ? 0x05 : 0x04]
+    }
+    public static func setAutoPowerOff(_ value: AutoPowerOff, wearingDetection: Bool) -> [UInt8] {
+        [0x28, wearingDetection ? 0x05 : 0x04, value.rawValue, AutoPowerOff.after5Minutes.rawValue]
+    }
+
+    // MARK: - Table 2 (sent as MessageType.dataMdrNo2)
+
+    // SYSTEM_GET_STATUS(0xF2), WEARING_STATUS_CHECKER(0x00). The headset answers with
+    // [0xF3, 0x00, status] and notifies changes with [0xF5, 0x00, status].
+    public static func getWearingStatus() -> [UInt8] { [0xF2, 0x00] }
+
+    private static func validate(_ value: Int, name: String, min: Int, max: Int) throws {
+        guard value >= min, value <= max else {
+            throw CommandError.valueOutOfRange(name: name, value: value, min: min, max: max)
+        }
+    }
+}

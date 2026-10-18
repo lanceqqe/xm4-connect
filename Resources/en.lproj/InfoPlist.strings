@@ -1,0 +1,3 @@
+"CFBundleDisplayName" = "XM Connect";
+"NSBluetoothAlwaysUsageDescription" = "XM Connect talks to your Sony headphones over Bluetooth to read the battery and change noise cancelling, the equalizer and other settings.";
+"NSHumanReadableCopyright" = "MIT. Not affiliated with Sony Group Corporation.";

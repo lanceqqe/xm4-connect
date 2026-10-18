@@ -1,0 +1,4 @@
+#!/bin/sh
+# Quit a running copy so the new version replaces it cleanly.
+/usr/bin/pkill -x XMConnect 2>/dev/null || true
+exit 0

@@ -1,0 +1,26 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: swiftc --version
+      - name: Protocol tests
+        run: make test
+      - name: Installer (.pkg)
+        run: make pkg
+      - name: Disk image (.dmg)
+        run: make dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: XM-Connect-macos
+          path: |
+            build/XM Connect Installer.pkg
+            build/XM Connect.dmg
