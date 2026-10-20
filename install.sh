@@ -36,7 +36,7 @@ echo "  $actual"
 dest="/Applications"
 [ -w "$dest" ] || { dest="$HOME/Applications"; mkdir -p "$dest"; }
 
-bold "Installing to $dest…"
+bold "Installing to ${dest}…"
 pkill -x XMConnect 2>/dev/null || true
 rm -rf "$dest/$APP"
 ditto -x -k "$tmp/$ASSET" "$dest"
