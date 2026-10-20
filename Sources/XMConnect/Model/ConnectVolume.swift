@@ -56,17 +56,20 @@ final class ConnectVolume {
         present = uids
     }
 
-    /// macOS restores its own remembered volume a moment after the link comes up, so set the
-    /// level once the output settles and once more after that.
+    /// macOS restores its own remembered volume a while after the link comes up (sometimes
+    /// several seconds later), so set the level once the output settles and again at about 3,
+    /// 6 and 10 seconds. The sleeps are cumulative.
     private func schedule(_ device: (id: AudioObjectID, uid: String, name: String)) {
         pending[device.uid]?.cancel()
         pending[device.uid] = Task { [weak self] in
-            for delay in [700_000_000, 2_500_000_000] as [UInt64] {
+            for delay in [700_000_000, 2_500_000_000, 3_000_000_000, 4_000_000_000] as [UInt64] {
                 try? await Task.sleep(nanoseconds: delay)
                 guard let self, !Task.isCancelled, self.settings.volumeOnConnect else { return }
                 // The device id can change while the route settles; look it up again by UID.
                 guard let current = Self.headsetOutputs().first(where: { $0.uid == device.uid }) else { return }
-                Self.setVolume(Float(self.settings.connectVolume), on: current.id)
+                let target = Float(self.settings.connectVolume)
+                if let before = Self.volume(of: current.id), abs(before - target) < 0.01 { continue }
+                Self.setVolume(target, on: current.id)
             }
             self?.pending[device.uid] = nil
         }
@@ -93,8 +96,26 @@ final class ConnectVolume {
         }
     }
 
+    /// The first readable volume (main element, else channel 1).
+    private static func volume(of device: AudioObjectID) -> Float? {
+        for element in [kAudioObjectPropertyElementMain, 1] as [UInt32] {
+            var address = AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyVolumeScalar,
+                mScope: kAudioDevicePropertyScopeOutput,
+                mElement: element)
+            var value: Float32 = 0
+            var size = UInt32(MemoryLayout<Float32>.size)
+            if AudioObjectHasProperty(device, &address),
+               AudioObjectGetPropertyData(device, &address, 0, nil, &size, &value) == noErr {
+                return value
+            }
+        }
+        return nil
+    }
+
     private static func setVolume(_ level: Float, on device: AudioObjectID) {
         let value = min(max(level, 0), 1)
+        let before = volume(of: device).map { "\(Int(($0 * 100).rounded())) % → " } ?? ""
         // Some devices expose one main volume, others (the XM4 among them) one per channel.
         var applied = false
         for element in [kAudioObjectPropertyElementMain, 1, 2] as [UInt32] {
@@ -112,7 +133,7 @@ final class ConnectVolume {
                 if element == kAudioObjectPropertyElementMain { break }
             }
         }
-        Log.info("Volume on connect: \(Int((value * 100).rounded())) %\(applied ? "" : " (not settable)")")
+        Log.info("Volume on connect: \(before)\(Int((value * 100).rounded())) %\(applied ? "" : " (not settable)")")
     }
 
     private static func transportType(_ id: AudioObjectID) -> UInt32 {

@@ -60,7 +60,7 @@ There is no account, no server, no telemetry and no Electron. It is a small nati
 | ⏸️ **Pause when taken off** | The headset's own setting |
 | ✨ **DSEE Extreme** | On or off |
 | ⏲️ **Auto power off** | When taken off, 5 min to 3 h, or never |
-| 🔊 **Volume on connect** | macOS often brings the headphones back far too quiet. When they connect, the app sets the Mac's output volume to the level you choose (Options tab), then sets it once more after macOS settles |
+| 🔊 **Volume on connect** | macOS often brings the headphones back far too quiet. When they connect, the app sets the Mac's output volume to the level you choose (Options tab), then sets it again over the next 10 seconds, because macOS restores its remembered volume late |
 | 🔋 **Battery** | Level and charging state in the panel and, if you want, next to the menu bar icon |
 | ℹ️ **Device info** | Firmware version and the codec in use (SBC / AAC / LDAC) |
 | ⏻ **Power off** | Turn the headphones off from the Mac |
