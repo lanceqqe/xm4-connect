@@ -135,6 +135,16 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    /// Set the Mac's volume for the headphones each time they connect.
+    @Published var volumeOnConnect: Bool {
+        didSet { defaults.set(volumeOnConnect, forKey: "volumeOnConnect") }
+    }
+
+    /// 0…1.
+    @Published var connectVolume: Double {
+        didSet { defaults.set(connectVolume, forKey: "connectVolume") }
+    }
+
     @Published var reduceMotion: Bool {
         didSet { defaults.set(reduceMotion, forKey: "reduceMotion") }
     }
@@ -155,6 +165,8 @@ final class AppSettings: ObservableObject {
         reduceMotion = defaults.bool(forKey: "reduceMotion")
             || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         launchAtLogin = LaunchAtLogin.isEnabled
+        volumeOnConnect = defaults.object(forKey: "volumeOnConnect") as? Bool ?? true
+        connectVolume = defaults.object(forKey: "connectVolume") as? Double ?? 0.6
         language = AppLanguage(rawValue: defaults.string(forKey: "language") ?? "") ?? .system
         Localization.apply(language)
     }

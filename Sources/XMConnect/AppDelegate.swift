@@ -9,6 +9,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settings: AppSettings?
     private var menuBar: MenuBarController?
     private var demoObserver: NSObjectProtocol?
+    private var connectVolume: ConnectVolume?
+    private var volumeObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Log.echoToConsole = CommandLine.arguments.contains("--verbose")
@@ -20,7 +22,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let model = HeadphonesModel(session: session, isDemo: startInDemo)
         self.settings = settings
         self.model = model
+        let connectVolume = ConnectVolume(settings: settings)
+        connectVolume.start()
+        self.connectVolume = connectVolume
         menuBar = MenuBarController(model: model, settings: settings)
+        volumeObserver = NotificationCenter.default.addObserver(
+            forName: .applyConnectVolume, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.connectVolume?.applyNow() }
+        }
 
         demoObserver = NotificationCenter.default.addObserver(
             forName: .toggleDemo, object: nil, queue: .main

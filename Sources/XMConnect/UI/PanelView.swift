@@ -200,6 +200,7 @@ struct PanelView: View {
 
 extension Notification.Name {
     static let toggleDemo = Notification.Name("XMConnectToggleDemo")
+    static let applyConnectVolume = Notification.Name("XMConnectApplyConnectVolume")
 }
 
 /// Pulsing connection dot.

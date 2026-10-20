@@ -49,6 +49,18 @@ final class RFCOMMClient: NSObject, @preconcurrency IOBluetoothRFCOMMChannelDele
         return IOBluetoothSDPUUID(bytes: bytes, length: bytes.count)
     }
 
+    /// A paired device at this Bluetooth address (any case, "-" or ":" separated) that publishes
+    /// either Sony MDR service.
+    static func isSonyHeadset(address: String) -> Bool {
+        let wanted = address.lowercased().replacingOccurrences(of: ":", with: "-")
+        guard let paired = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] else { return false }
+        return paired.contains { device in
+            device.addressString?.lowercased().replacingOccurrences(of: ":", with: "-") == wanted
+                && (device.getServiceRecord(for: uuid(v1: true)) != nil
+                    || device.getServiceRecord(for: uuid(v1: false)) != nil)
+        }
+    }
+
     /// Protocol v1 when the headset only publishes the v1 service.
     static func speaksV1(_ device: IOBluetoothDevice) -> Bool {
         device.getServiceRecord(for: uuid(v1: false)) == nil

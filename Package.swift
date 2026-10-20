@@ -21,6 +21,7 @@ let package = Package(
                 .linkedFramework("SwiftUI"),
                 .linkedFramework("SceneKit"),
                 .linkedFramework("ServiceManagement"),
+                .linkedFramework("CoreAudio"),
             ]
         ),
         .executableTarget(name: "SonyProtocolTests", dependencies: ["SonyProtocolKit"]),

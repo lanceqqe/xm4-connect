@@ -278,6 +278,36 @@ struct OptionsTab: View {
                     }
                 }
 
+                Card {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle(isOn: $settings.volumeOnConnect) {
+                            OptionLabel(icon: "speaker.wave.3", title: L("Volume on connect", "Volume à la connexion"),
+                                        detail: L("Sets the Mac's volume each time the headphones connect",
+                                                  "Règle le volume du Mac à chaque connexion du casque"))
+                        }
+                        .toggleStyle(GlowToggleStyle(look: look))
+                        if settings.volumeOnConnect {
+                            HStack(spacing: 10) {
+                                GlowSlider(value: volumePercent, range: 5...100, look: look, enabled: true)
+                                Text("\(Int(volumePercent.wrappedValue)) %")
+                                    .font(.rounded(13, .semibold))
+                                    .monospacedDigit()
+                                    .foregroundStyle(Theme.textPrimary)
+                                    .frame(width: 44, alignment: .trailing)
+                            }
+                            .padding(.leading, 32)
+                            HStack {
+                                Spacer()
+                                PillButton(icon: "speaker.wave.2", title: L("Apply now", "Appliquer")) {
+                                    NotificationCenter.default.post(name: .applyConnectVolume, object: nil)
+                                }
+                                .disabled(!model.isConnected)
+                            }
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.2), value: settings.volumeOnConnect)
+                }
+
                 if model.hasDeviceInfo && model.isConnected {
                     Card {
                         VStack(spacing: 8) {
@@ -341,6 +371,14 @@ struct OptionsTab: View {
             }
             .padding(.bottom, 8)
         }
+    }
+}
+
+extension OptionsTab {
+    /// The 0…1 setting shown as whole percent steps for the slider.
+    var volumePercent: Binding<Double> {
+        Binding(get: { (settings.connectVolume * 100).rounded() },
+                set: { settings.connectVolume = $0 / 100 })
     }
 }
 

@@ -41,7 +41,7 @@ There is no account, no server, no telemetry and no Electron. It is a small nati
 
 > XM4 Connect is an independent open-source project. It is **not affiliated with, endorsed by or supported by Sony.**
 
-> **По-русски:** XM4 Connect — это форк XM Connect для Sony WH-1000XM4. Он управляет наушниками из строки меню Mac: все режимы шумоподавления (NC, Wind, Ambient, Off), эквалайзер, NC Optimizer, Speak-to-Chat с настройками, кнопка Custom, голосовые подсказки, DSEE Extreme, автовыключение и батарея. Установка — одной командой ниже.
+> **По-русски:** XM4 Connect — это форк XM Connect для Sony WH-1000XM4. Он управляет наушниками из строки меню Mac: все режимы шумоподавления (NC, Wind, Ambient, Off), эквалайзер, NC Optimizer, Speak-to-Chat с настройками, кнопка Custom, голосовые подсказки, громкость при подключении (наушники больше не подключаются тихими), DSEE Extreme, автовыключение и батарея. Установка — одной командой ниже.
 
 ## Features
 
@@ -60,6 +60,7 @@ There is no account, no server, no telemetry and no Electron. It is a small nati
 | ⏸️ **Pause when taken off** | The headset's own setting |
 | ✨ **DSEE Extreme** | On or off |
 | ⏲️ **Auto power off** | When taken off, 5 min to 3 h, or never |
+| 🔊 **Volume on connect** | macOS often brings the headphones back far too quiet. When they connect, the app sets the Mac's output volume to the level you choose (Options tab), then sets it once more after macOS settles |
 | 🔋 **Battery** | Level and charging state in the panel and, if you want, next to the menu bar icon |
 | ℹ️ **Device info** | Firmware version and the codec in use (SBC / AAC / LDAC) |
 | ⏻ **Power off** | Turn the headphones off from the Mac |
@@ -130,7 +131,7 @@ rm -rf ~/Library/Logs/XM4\ Connect
 The panel has three tabs:
 - **Listening**: ambient level, Focus on Voice, NC Optimizer, Speak-to-Chat and its settings, pause when taken off.
 - **Equalizer**: presets and the curve editor.
-- **Options**: DSEE Extreme, auto power off, Custom button, Bluetooth quality, voice guidance, device info, 3D finish, language, battery in the menu bar, open at login, reduce motion.
+- **Options**: DSEE Extreme, auto power off, Custom button, Bluetooth quality, voice guidance, volume on connect, device info, 3D finish, language, battery in the menu bar, open at login, reduce motion.
 
 ### Pause when taken off
 
