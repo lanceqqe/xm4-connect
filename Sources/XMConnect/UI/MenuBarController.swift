@@ -190,6 +190,7 @@ final class MenuBarController: NSObject {
 
     func showPanel() {
         hideWork?.cancel()
+        model.panelOpened()
         positionPanel()
         panel.alphaValue = 1
         panel.orderFrontRegardless()

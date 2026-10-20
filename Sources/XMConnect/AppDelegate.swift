@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Log.echoToConsole = CommandLine.arguments.contains("--verbose")
+        Log.debugEnabled = UserDefaults.standard.bool(forKey: "debugLog")
         let startInDemo = CommandLine.arguments.contains("--demo")
         Log.info("XM4 Connect starting\(startInDemo ? " (demo)" : "")")
 

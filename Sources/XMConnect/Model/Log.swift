@@ -10,6 +10,11 @@ enum Log {
     /// Set by `--verbose` so the console shows the same lines written to disk.
     nonisolated(unsafe) static var echoToConsole = false
 
+    /// Raw protocol traffic is only logged with `--verbose` or
+    /// `defaults write app.xm4connect.mac debugLog -bool YES`: at a few lines a second, writing
+    /// it to disk all day costs more than it is worth.
+    nonisolated(unsafe) static var debugEnabled = false
+
     private static let directory: URL = {
         let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
         return library.appendingPathComponent("Logs/XM4 Connect", isDirectory: true)
@@ -24,7 +29,10 @@ enum Log {
     }()
 
     static func info(_ message: String) { write("INF", message) }
-    static func debug(_ message: String) { write("DBG", message) }
+    static func debug(_ message: @autoclosure () -> String) {
+        guard debugEnabled || echoToConsole else { return }
+        write("DBG", message())
+    }
     static func error(_ message: String) { write("ERR", message) }
 
     /// Absolute path, for the "logs live at …" line in diagnostics.

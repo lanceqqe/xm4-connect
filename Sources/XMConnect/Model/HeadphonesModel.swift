@@ -432,6 +432,16 @@ final class HeadphonesModel: ObservableObject {
         bands = flat
     }
 
+    private var lastPanelRefresh = Date.distantPast
+
+    /// Re-reads every setting when the panel opens, since the background poll only reads the
+    /// battery. At most every 10 s, so flicking the panel open and shut stays cheap.
+    func panelOpened() {
+        guard isConnected, !isDemo, Date().timeIntervalSince(lastPanelRefresh) > 10 else { return }
+        lastPanelRefresh = Date()
+        Task { try? await session.refresh() }
+    }
+
     func powerOff() {
         push { try await self.session.powerOff() }
     }

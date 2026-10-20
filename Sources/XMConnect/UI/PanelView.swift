@@ -62,7 +62,8 @@ struct PanelView: View {
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
                 HStack(spacing: 6) {
-                    StatusDot(connected: model.isConnected, connecting: model.isConnecting, look: look)
+                    StatusDot(connected: model.isConnected, connecting: model.isConnecting, look: look,
+                              animating: state.isVisible && !settings.reduceMotion)
                     Text(model.statusText)
                         .font(.rounded(11.5, .medium))
                         .foregroundStyle(Theme.textSecondary)
@@ -203,28 +204,32 @@ extension Notification.Name {
     static let applyConnectVolume = Notification.Name("XMConnectApplyConnectVolume")
 }
 
-/// Pulsing connection dot.
+/// Pulsing connection dot. The pulse is driven by a pausable timeline rather than a
+/// `repeatForever` animation: SwiftUI keeps running those after the panel is ordered out, which
+/// cost a steady ~5 % CPU and a display-cycle wakeup every frame while the app sat idle.
 struct StatusDot: View {
     let connected: Bool
     let connecting: Bool
     let look: ListeningLook
-    @State var pulse = false
+    var animating: Bool
 
     var body: some View {
         let color: Color = connected ? Color(red: 0.3, green: 0.9, blue: 0.55)
             : (connecting ? look.accent.0.color : Color(red: 1, green: 0.45, blue: 0.4))
-        ZStack {
-            Circle()
-                .fill(color.opacity(0.35))
-                .frame(width: 14, height: 14)
-                .scaleEffect(pulse ? 1 : 0.4)
-                .opacity(pulse ? 0 : 1)
-            Circle().fill(color).frame(width: 7, height: 7)
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !animating)) { context in
+            // easeOut over a 1.6 s cycle, like the animation it replaces.
+            let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.6) / 1.6
+            let eased = animating ? 1 - pow(1 - phase, 2) : 1
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.35))
+                    .frame(width: 14, height: 14)
+                    .scaleEffect(0.4 + 0.6 * eased)
+                    .opacity(1 - eased)
+                Circle().fill(color).frame(width: 7, height: 7)
+            }
         }
         .frame(width: 14, height: 14)
-        .onAppear {
-            withAnimation(.easeOut(duration: 1.6).repeatForever(autoreverses: false)) { pulse = true }
-        }
     }
 }
 

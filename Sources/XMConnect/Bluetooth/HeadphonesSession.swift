@@ -208,7 +208,9 @@ final class HeadphonesSession: HeadphonesControlling {
                     if await dropped.wait(timeout: refreshInterval) { break }
                     try Task.checkCancellation()
                     try await checkConnection()
-                    try await refresh()
+                    // The XM4 announces every setting change itself, so between panel openings
+                    // only the battery needs polling. Fewer frames, less radio time.
+                    try await (isV1 ? refreshBattery() : refresh())
                 }
                 if Task.isCancelled { break }
                 newClient.close()
@@ -604,6 +606,21 @@ final class HeadphonesSession: HeadphonesControlling {
     func runNcOptimizer(_ start: Bool) async throws {
         guard isV1, capabilities?.hasNcOptimizer == true else { return }
         try await sendCommand(CommandsV1.runNcOptimizer(start))
+    }
+
+    private func refreshBattery() async throws {
+        let expectedClient = client
+        do {
+            try await queryLock.withLock {
+                guard self.client === expectedClient else { throw TransportError.notConnected }
+                try await self.sendCommand(CommandsV1.getBattery())
+            }
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            if client === expectedClient { reconnectAfterFailure() }
+            throw error
+        }
     }
 
     func refresh() async throws {

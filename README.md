@@ -62,6 +62,7 @@ There is no account, no server, no telemetry and no Electron. It is a small nati
 | ⏲️ **Auto power off** | When taken off, 5 min to 3 h, or never |
 | 🔊 **Volume on connect** | macOS often brings the headphones back far too quiet. When they connect, the app sets the Mac's output volume to the level you choose (Options tab), then sets it again over the next 10 seconds, because macOS restores its remembered volume late |
 | 🔋 **Battery** | Level and charging state in the panel and, if you want, next to the menu bar icon |
+| 🪫 **Light on battery** | With the panel closed it sits at ~0 % CPU: the 3D scene and animations stop, and the headset is only polled for its battery (it announces every other change itself) |
 | ℹ️ **Device info** | Firmware version and the codec in use (SBC / AAC / LDAC) |
 | ⏻ **Power off** | Turn the headphones off from the Mac |
 | 🔄 **Two-way sync** | Change a mode with the button on the headphones and the app follows instantly |
@@ -160,7 +161,11 @@ open "/Applications/XM4 Connect.app" --args --demo
 | A setting jumps back | The headphones rejected it; the app re-reads their state so it never shows a value they do not have. Please open an issue with the log |
 | macOS says the app can't be verified | Install with [Option 1](#option-1--one-line-in-terminal-recommended), or allow it once with *Open Anyway* ([steps](#option-2--installer-or-disk-image)) |
 
-The log is at `~/Library/Logs/XM4 Connect/app.log`; open it from **⋯ › Open the log**. It contains the raw protocol traffic, which is the most useful thing to attach to a bug report.
+The log is at `~/Library/Logs/XM4 Connect/app.log`; open it from **⋯ › Open the log**. To include the raw protocol traffic, which is the most useful thing to attach to a bug report, turn it on and restart the app (it is off by default to save battery):
+
+```bash
+defaults write app.xm4connect.mac debugLog -bool YES
+```
 
 ## How it works
 

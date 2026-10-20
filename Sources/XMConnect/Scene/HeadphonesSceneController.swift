@@ -34,6 +34,8 @@ final class HeadphonesSceneController: NSObject {
 
     /// Stop rendering while the panel is hidden, to save battery.
     func setActive(_ active: Bool) {
+        // Half the frame rate in Low Power Mode: the scene still moves smoothly enough.
+        view.preferredFramesPerSecond = ProcessInfo.processInfo.isLowPowerModeEnabled ? 30 : 60
         view.isPlaying = active
         view.rendersContinuously = active
     }
