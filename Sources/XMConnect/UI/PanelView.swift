@@ -172,7 +172,7 @@ struct PanelView: View {
                     NSWorkspace.shared.open(URL(fileURLWithPath: Log.path))
                 }
                 Divider()
-                Button(L("Quit XM Connect", "Quitter XM Connect"), action: onQuit)
+                Button(L("Quit XM4 Connect", "Quitter XM4 Connect"), action: onQuit)
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 13, weight: .bold))
@@ -189,7 +189,7 @@ struct PanelView: View {
 
     private func cycleMode() {
         guard model.isConnected, model.hasNoiseControls else { return }
-        let order: [NcAmbMode] = model.hasNcChip ? [.noiseCancelling, .ambient, .off] : [.ambient, .off]
+        let order = model.availableModes
         let index = order.firstIndex(of: model.mode) ?? 0
         withAnimation(.spring(response: 0.42, dampingFraction: 0.72)) {
             model.mode = order[(index + 1) % order.count]

@@ -13,6 +13,8 @@ import Foundation
 public enum NcAmbMode: Sendable, Hashable {
     case off
     case noiseCancelling
+    /// Wind noise reduction (WH-1000XM4). v2 devices treat it as noise cancelling.
+    case windNoiseReduction
     case ambient
 }
 

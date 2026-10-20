@@ -38,6 +38,22 @@ final class RFCOMMClient: NSObject, @preconcurrency IOBluetoothRFCOMMChannelDele
         0x95, 0x6C, 0x7B, 0x26, 0xD4, 0x9A, 0x4B, 0xA8,
         0xB0, 0x3F, 0xB1, 0x7D, 0x39, 0x3C, 0xB6, 0xE2,
     ]
+    /// The protocol-v1 MDR service (WH-1000XM4 and older): 96CC203E-5068-46AD-B32D-E316F5E069BA.
+    static let v1ServiceUUIDBytes: [UInt8] = [
+        0x96, 0xCC, 0x20, 0x3E, 0x50, 0x68, 0x46, 0xAD,
+        0xB3, 0x2D, 0xE3, 0x16, 0xF5, 0xE0, 0x69, 0xBA,
+    ]
+
+    private static func uuid(v1: Bool) -> IOBluetoothSDPUUID {
+        let bytes = v1 ? v1ServiceUUIDBytes : serviceUUIDBytes
+        return IOBluetoothSDPUUID(bytes: bytes, length: bytes.count)
+    }
+
+    /// Protocol v1 when the headset only publishes the v1 service.
+    static func speaksV1(_ device: IOBluetoothDevice) -> Bool {
+        device.getServiceRecord(for: uuid(v1: false)) == nil
+            && device.getServiceRecord(for: uuid(v1: true)) != nil
+    }
 
     private var channel: IOBluetoothRFCOMMChannel?
     private var device: IOBluetoothDevice?
@@ -57,9 +73,9 @@ final class RFCOMMClient: NSObject, @preconcurrency IOBluetoothRFCOMMChannelDele
         guard let paired = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice], !paired.isEmpty else {
             throw TransportError.noPairedSonyDevice
         }
-        let uuid = IOBluetoothSDPUUID(bytes: serviceUUIDBytes, length: serviceUUIDBytes.count)
+        let v1 = uuid(v1: true), v2 = uuid(v1: false)
         let found = DeviceSelection.preferred(paired,
-            hasService: { $0.getServiceRecord(for: uuid) != nil },
+            hasService: { $0.getServiceRecord(for: v2) != nil || $0.getServiceRecord(for: v1) != nil },
             isConnected: { $0.isConnected() })
         if let found, found.isConnected() {
             Log.info("Found Sony device: \(found.name ?? "Sony Headphones") connected=true")
@@ -69,7 +85,8 @@ final class RFCOMMClient: NSObject, @preconcurrency IOBluetoothRFCOMMChannelDele
         for device in paired {
             // Only re-query devices that plausibly are the headset; a full SDP sweep of every
             // paired peripheral on each reconnect attempt would be needlessly chatty.
-            if device.isConnected(), device.getServiceRecord(for: uuid) == nil,
+            if device.isConnected(), device.getServiceRecord(for: v2) == nil,
+               device.getServiceRecord(for: v1) == nil,
                DeviceSelection.mayBeSony(device.name ?? "") {
                 device.performSDPQuery(nil)
                 sdpQueryIssued = true
@@ -89,8 +106,7 @@ final class RFCOMMClient: NSObject, @preconcurrency IOBluetoothRFCOMMChannelDele
 
     func connect(to device: IOBluetoothDevice) async throws {
         self.device = device
-        let uuid = IOBluetoothSDPUUID(bytes: Self.serviceUUIDBytes, length: Self.serviceUUIDBytes.count)
-        guard let record = device.getServiceRecord(for: uuid) else {
+        guard let record = device.getServiceRecord(for: Self.uuid(v1: Self.speaksV1(device))) else {
             throw TransportError.serviceUnreachable
         }
 

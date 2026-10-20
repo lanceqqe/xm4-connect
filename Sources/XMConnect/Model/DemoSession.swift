@@ -1,7 +1,7 @@
 import Foundation
 import SonyProtocolKit
 
-/// A simulated WH-1000XM5. It answers every command the way the real headset does (by sending
+/// A simulated WH-1000XM4. It answers every command the way the real headset does (by sending
 /// the matching notification back), so the interface can be explored without headphones.
 @MainActor
 final class DemoSession: HeadphonesControlling {
@@ -13,6 +13,8 @@ final class DemoSession: HeadphonesControlling {
     private var stopped = false
     private var battery = 82
     private var preset: EqPreset = .off
+    private var speakToChatConfig = SpeakToChatConfig(sensitivity: .auto, voiceFocus: false, timeout: .standard)
+    private var optimizerRun: Task<Void, Never>?
     private var customBands: [EqPreset: (Int, [Int])] = [
         .manual: (0, [0, 0, 0, 0, 0]),
         .custom1: (3, [2, 0, -1, 1, 3]),
@@ -43,12 +45,19 @@ final class DemoSession: HeadphonesControlling {
 
             var caps = DeviceCapabilities(
                 ncVariant: .dualSeamless, hasNcMode: true, batteries: [.single],
-                hasEq: true, hasPowerOff: true, deviceName: "WH-1000XM5")
+                hasEq: true, hasPowerOff: true, deviceName: "WH-1000XM4")
             caps.hasSpeakToChat = true
             caps.hasAutoPause = true
             caps.hasDsee = true
-            caps.autoPowerOffWearingDetection = false
-            caps.hasWearingStatus = true
+            caps.autoPowerOffWearingDetection = true
+            caps.hasAutoPowerOff15Minutes = false
+            caps.hasWindMode = true
+            caps.hasSpeakToChatConfig = true
+            caps.hasCustomButton = true
+            caps.hasVoiceGuidance = true
+            caps.hasSoundQualityPriority = true
+            caps.hasNcOptimizer = true
+            caps.hasDeviceInfo = true
             self.onCapabilities?(caps)
             self.onStateChanged?(.ready)
 
@@ -59,8 +68,14 @@ final class DemoSession: HeadphonesControlling {
             self.emit(.speakToChat(enabled: false))
             self.emit(.autoPause(enabled: true))
             self.emit(.dsee(enabled: true))
-            self.emit(.autoPowerOff(.never, wearingDetection: false))
-            self.emit(.wearing(.worn))
+            self.emit(.autoPowerOff(.whenTakenOff, wearingDetection: true))
+            self.emit(.speakToChatConfig(self.speakToChatConfig))
+            self.emit(.customButton(.ambientSoundControl))
+            self.emit(.voiceGuidance(enabled: true))
+            self.emit(.soundQualityPriority(true))
+            self.emit(.ncOptimizerPressure(1.0))
+            self.emit(.codec(.ldac))
+            self.emit(.firmware("2.5.0"))
 
             // The battery drains slowly so the ring has something to do.
             while !Task.isCancelled {
@@ -112,7 +127,32 @@ final class DemoSession: HeadphonesControlling {
     func setAutoPause(_ enabled: Bool) async throws { await reply(.autoPause(enabled: enabled)) }
     func setDsee(_ enabled: Bool) async throws { await reply(.dsee(enabled: enabled)) }
     func setAutoPowerOff(_ value: AutoPowerOff) async throws {
-        await reply(.autoPowerOff(value, wearingDetection: false))
+        await reply(.autoPowerOff(value, wearingDetection: true))
+    }
+    func setSpeakToChatConfig(_ config: SpeakToChatConfig) async throws {
+        speakToChatConfig = config
+        await reply(.speakToChatConfig(config))
+    }
+    func setCustomButton(_ function: CustomButtonFunction) async throws { await reply(.customButton(function)) }
+    func setVoiceGuidance(_ enabled: Bool) async throws { await reply(.voiceGuidance(enabled: enabled)) }
+    func setSoundQualityPriority(_ quality: Bool) async throws {
+        await reply(.soundQualityPriority(quality))
+        await reply(.codec(quality ? .ldac : .aac))
+    }
+
+    /// Walks through the same steps the real headset reports.
+    func runNcOptimizer(_ start: Bool) async throws {
+        optimizerRun?.cancel()
+        guard start else { return await reply(.ncOptimizerStatus(.notRunning)) }
+        optimizerRun = Task { [weak self] in
+            for status: NcOptimizerStatus in [.checkingWearing, .measuringPressure, .analyzing, .finished] {
+                self?.emit(.ncOptimizerStatus(status))
+                try? await Task.sleep(nanoseconds: 1_600_000_000)
+                guard !Task.isCancelled else { return }
+            }
+            self?.emit(.ncOptimizerPressure(1.0))
+            self?.emit(.ncOptimizerStatus(.notRunning))
+        }
     }
 
     private func reply(_ event: DeviceEvent) async {

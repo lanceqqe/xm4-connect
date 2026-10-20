@@ -1,19 +1,19 @@
-# XM Connect — build with nothing but the Xcode Command Line Tools (xcode-select --install).
+# XM4 Connect — build with nothing but the Xcode Command Line Tools (xcode-select --install).
 #
-#   make            build "build/XM Connect.app" for this Mac
+#   make            build "build/XM4 Connect.app" for this Mac
 #   make run        build and open it
 #   make demo       build and open it in demo mode (no headphones needed)
 #   make install    copy it to /Applications
-#   make pkg        build the installer:  build/XM Connect Installer.pkg  (universal)
-#   make dmg        build a disk image:   build/XM Connect.dmg            (universal)
+#   make pkg        build the installer:  build/XM4 Connect Installer.pkg  (universal)
+#   make dmg        build a disk image:   build/XM4 Connect.dmg            (universal)
 #   make test       run the protocol test suite
 #
 # Like sony-tray, this drives swiftc directly rather than SwiftPM: a Command-Line-Tools-only Mac
 # can have a SwiftPM manifest library that fails to link, while plain swiftc always works.
 
-NAME     := XM Connect
+NAME     := XM4 Connect
 EXE      := XMConnect
-BUNDLE_ID := app.xmconnect.mac
+BUNDLE_ID := app.xm4connect.mac
 VERSION  := $(shell /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Resources/Info.plist 2>/dev/null || echo 1.0)
 
 SWIFTC   := swiftc
@@ -119,7 +119,7 @@ pkg: universal
 	@plutil -replace 0.BundleIsRelocatable -bool NO $(BUILD)/pkg/component.plist
 	@pkgbuild --root $(BUILD)/pkg/root --component-plist $(BUILD)/pkg/component.plist \
 		--install-location /Applications --identifier $(BUNDLE_ID) --version $(VERSION) \
-		--scripts installer/scripts $(BUILD)/pkg/XMConnect-component.pkg >/dev/null
+		--scripts installer/scripts $(BUILD)/pkg/XM4Connect-component.pkg >/dev/null
 	@productbuild --distribution installer/distribution.xml --resources installer/resources \
 		--package-path $(BUILD)/pkg $(PRODUCTSIGN) "$(BUILD)/$(NAME) Installer.pkg" >/dev/null
 	@echo "built $(BUILD)/$(NAME) Installer.pkg"
@@ -143,9 +143,9 @@ dmg: universal
 
 # --- Zip (used by the one-line installer) ---------------------------------------------------
 zip: universal
-	@rm -f $(BUILD)/XM-Connect-macos.zip
-	@cd $(BUILD) && ditto -c -k --keepParent --sequesterRsrc "$(NAME).app" XM-Connect-macos.zip
-	@echo "built $(BUILD)/XM-Connect-macos.zip"
+	@rm -f $(BUILD)/XM4-Connect-macos.zip
+	@cd $(BUILD) && ditto -c -k --keepParent --sequesterRsrc "$(NAME).app" XM4-Connect-macos.zip
+	@echo "built $(BUILD)/XM4-Connect-macos.zip"
 
 # --- Tests -----------------------------------------------------------------------------------
 test: $(KIT_SRC) $(TEST_SRC)

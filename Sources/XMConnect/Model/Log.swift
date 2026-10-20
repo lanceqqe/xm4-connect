@@ -1,7 +1,7 @@
 // From sony-tray by Abhinav (abhiinhii) and contributors, MIT — see THIRD_PARTY_LICENSE_sony-tray.txt.
 import Foundation
 
-/// File logger (from sony-tray, MIT) writing to `~/Library/Logs/XM Connect/app.log`. Rotates one
+/// File logger (from sony-tray, MIT) writing to `~/Library/Logs/XM4 Connect/app.log`. Rotates one
 /// generation at 1 MB and never lets a logging failure reach the caller.
 enum Log {
     private static let gate = NSLock()
@@ -12,7 +12,7 @@ enum Log {
 
     private static let directory: URL = {
         let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
-        return library.appendingPathComponent("Logs/XM Connect", isDirectory: true)
+        return library.appendingPathComponent("Logs/XM4 Connect", isDirectory: true)
     }()
 
     private static let file = directory.appendingPathComponent("app.log")

@@ -105,12 +105,13 @@ final class MenuBarController: NSObject {
         } else {
             switch model.mode {
             case .noiseCancelling: symbol = "headphones.circle.fill"
+            case .windNoiseReduction: symbol = "wind.circle"
             case .ambient: symbol = "headphones.circle"
             case .off: symbol = "headphones"
             }
         }
-        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "XM Connect")
-            ?? NSImage(systemSymbolName: "headphones", accessibilityDescription: "XM Connect")
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "XM4 Connect")
+            ?? NSImage(systemSymbolName: "headphones", accessibilityDescription: "XM4 Connect")
         image?.isTemplate = true
         button.image = image
         button.appearsDisabled = !model.isConnected
@@ -124,8 +125,8 @@ final class MenuBarController: NSObject {
 
         let modeName = ListeningLook(mode: model.mode, connected: model.isConnected).title
         button.toolTip = model.isConnected
-            ? "XM Connect — \(model.displayName)\n\(modeName) · \(L("Battery", "Batterie")) \(model.batteryText)"
-            : "XM Connect — \(model.statusText)"
+            ? "XM4 Connect — \(model.displayName)\n\(modeName) · \(L("Battery", "Batterie")) \(model.batteryText)"
+            : "XM4 Connect — \(model.statusText)"
     }
 
     @objc private func statusItemClicked() {
@@ -140,15 +141,12 @@ final class MenuBarController: NSObject {
     private func showContextMenu() {
         let menu = NSMenu()
         if model.isConnected && model.hasNoiseControls {
-            var modes: [(NcAmbMode, String)] = []
-            if model.hasNcChip { modes.append((NcAmbMode.noiseCancelling, L("Noise cancelling", "Réduction de bruit"))) }
-            modes.append((NcAmbMode.ambient, L("Ambient sound", "Son ambiant")))
-            modes.append((NcAmbMode.off, L("Off", "Désactivé")))
-            for (mode, title) in modes {
+            for (index, mode) in model.availableModes.enumerated() {
+                let title = ListeningLook(mode: mode, connected: true).title
                 let item = NSMenuItem(title: title, action: #selector(selectMode(_:)), keyEquivalent: "")
                 item.target = self
                 item.state = model.mode == mode ? .on : .off
-                item.representedObject = mode == .noiseCancelling ? 0 : (mode == .ambient ? 1 : 2)
+                item.representedObject = index
                 menu.addItem(item)
             }
             menu.addItem(.separator())
@@ -162,7 +160,7 @@ final class MenuBarController: NSObject {
         login.state = settings.launchAtLogin ? .on : .off
         menu.addItem(login)
         menu.addItem(.separator())
-        let quit = NSMenuItem(title: L("Quit XM Connect", "Quitter XM Connect"), action: #selector(quit), keyEquivalent: "q")
+        let quit = NSMenuItem(title: L("Quit XM4 Connect", "Quitter XM4 Connect"), action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
 
@@ -172,8 +170,9 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func selectMode(_ sender: NSMenuItem) {
-        guard let index = sender.representedObject as? Int else { return }
-        model.mode = [NcAmbMode.noiseCancelling, .ambient, .off][index]
+        let modes = model.availableModes
+        guard let index = sender.representedObject as? Int, modes.indices.contains(index) else { return }
+        model.mode = modes[index]
     }
 
     @objc private func toggleDemo() {

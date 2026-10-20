@@ -1,7 +1,7 @@
 -- Arranges the disk image window: background, icon positions, no toolbar.
 -- Run by `make dmg` while the read-write image is mounted. Failure is harmless.
 tell application "Finder"
-	tell disk "XM Connect"
+	tell disk "XM4 Connect"
 		open
 		set current view of container window to icon view
 		set toolbar visible of container window to false
@@ -12,7 +12,7 @@ tell application "Finder"
 		set icon size of viewOptions to 128
 		set text size of viewOptions to 13
 		set background picture of viewOptions to file ".background:background.tiff"
-		set position of item "XM Connect.app" of container window to {170, 190}
+		set position of item "XM4 Connect.app" of container window to {170, 190}
 		set position of item "Applications" of container window to {490, 190}
 		close
 		open

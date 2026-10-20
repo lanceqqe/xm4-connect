@@ -6,7 +6,7 @@ import AppKit
 let app = NSApplication.shared
 
 // Single instance.
-let bundleID = Bundle.main.bundleIdentifier ?? "app.xmconnect.mac"
+let bundleID = Bundle.main.bundleIdentifier ?? "app.xm4connect.mac"
 if NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).count > 1 {
     exit(0)
 }

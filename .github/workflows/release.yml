@@ -2,7 +2,7 @@
 # To release: bump CFBundleShortVersionString in Resources/Info.plist and push to main.
 # The workflow creates the vX.Y.Z tag itself. Pushing a vX.Y.Z tag also works.
 #
-# Artifacts: XM-Connect-macos.zip (used by install.sh), XM-Connect-Installer.pkg, XM-Connect.dmg,
+# Artifacts: XM4-Connect-macos.zip (used by install.sh), XM4-Connect-Installer.pkg, XM4-Connect.dmg,
 # each with a .sha256 file and a signed build-provenance attestation.
 #
 # Without secrets the app is signed ad hoc (users installing via install.sh see no warning;
@@ -84,26 +84,26 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
-          for f in "build/XM Connect Installer.pkg" "build/XM Connect.dmg"; do
+          for f in "build/XM4 Connect Installer.pkg" "build/XM4 Connect.dmg"; do
             xcrun notarytool submit "$f" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
               --password "$APPLE_APP_PASSWORD" --wait
             xcrun stapler staple "$f"
           done
           # The zip cannot be stapled: notarize the app, staple the app, then re-zip it.
-          xcrun notarytool submit build/XM-Connect-macos.zip --apple-id "$APPLE_ID" \
+          xcrun notarytool submit build/XM4-Connect-macos.zip --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
-          xcrun stapler staple "build/XM Connect.app"
-          rm build/XM-Connect-macos.zip
-          (cd build && ditto -c -k --keepParent --sequesterRsrc "XM Connect.app" XM-Connect-macos.zip)
+          xcrun stapler staple "build/XM4 Connect.app"
+          rm build/XM4-Connect-macos.zip
+          (cd build && ditto -c -k --keepParent --sequesterRsrc "XM4 Connect.app" XM4-Connect-macos.zip)
 
       - name: Checksums
         if: steps.version.outputs.release == 'true'
         run: |
           cd build
           mkdir -p release
-          cp XM-Connect-macos.zip release/
-          cp "XM Connect Installer.pkg" release/XM-Connect-Installer.pkg
-          cp "XM Connect.dmg" release/XM-Connect.dmg
+          cp XM4-Connect-macos.zip release/
+          cp "XM4 Connect Installer.pkg" release/XM4-Connect-Installer.pkg
+          cp "XM4 Connect.dmg" release/XM4-Connect.dmg
           cd release
           for f in *; do shasum -a 256 "$f" > "$f.sha256"; done
           cat *.sha256
@@ -112,15 +112,15 @@ jobs:
         if: steps.version.outputs.release == 'true'
         with:
           subject-path: |
-            build/release/XM-Connect-macos.zip
-            build/release/XM-Connect-Installer.pkg
-            build/release/XM-Connect.dmg
+            build/release/XM4-Connect-macos.zip
+            build/release/XM4-Connect-Installer.pkg
+            build/release/XM4-Connect.dmg
 
       - uses: softprops/action-gh-release@v2
         if: steps.version.outputs.release == 'true'
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           target_commitish: ${{ github.sha }}
-          name: XM Connect ${{ steps.version.outputs.tag }}
+          name: XM4 Connect ${{ steps.version.outputs.tag }}
           generate_release_notes: true
           files: build/release/*

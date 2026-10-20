@@ -19,14 +19,15 @@ struct RGB: Equatable {
     var simd: SIMD3<Float> { SIMD3(Float(r), Float(g), Float(b)) }
 }
 
-/// What the scene and the controls show: one of the three listening modes, or "not connected".
+/// What the scene and the controls show: one of the listening modes, or "not connected".
 enum ListeningLook: Equatable {
-    case noiseCancelling, ambient, off, disconnected
+    case noiseCancelling, wind, ambient, off, disconnected
 
     init(mode: NcAmbMode, connected: Bool) {
         guard connected else { self = .disconnected; return }
         switch mode {
         case .noiseCancelling: self = .noiseCancelling
+        case .windNoiseReduction: self = .wind
         case .ambient: self = .ambient
         case .off: self = .off
         }
@@ -36,6 +37,7 @@ enum ListeningLook: Equatable {
     var accent: (RGB, RGB) {
         switch self {
         case .noiseCancelling: return (RGB(hex: 0x6C63FF), RGB(hex: 0x2FD2FF))
+        case .wind: return (RGB(hex: 0x1FC8A8), RGB(hex: 0x6FE3FF))
         case .ambient: return (RGB(hex: 0xFFB13B), RGB(hex: 0xFF5E9C))
         case .off: return (RGB(hex: 0xB8C0CC), RGB(hex: 0x8792A2))
         case .disconnected: return (RGB(hex: 0x5D6470), RGB(hex: 0x3A3F48))
@@ -45,6 +47,7 @@ enum ListeningLook: Equatable {
     var title: String {
         switch self {
         case .noiseCancelling: return L("Noise cancelling", "Réduction de bruit")
+        case .wind: return L("Wind noise reduction", "Réduction du bruit du vent")
         case .ambient: return L("Ambient sound", "Son ambiant")
         case .off: return L("Off", "Désactivé")
         case .disconnected: return L("Not connected", "Non connecté")
@@ -54,6 +57,7 @@ enum ListeningLook: Equatable {
     var subtitle: String {
         switch self {
         case .noiseCancelling: return L("The world fades away", "Le monde extérieur s'efface")
+        case .wind: return L("Calm sound outdoors, even in a gust", "Un son calme dehors, même par grand vent")
         case .ambient: return L("Hear what's around you", "Tu entends ce qui t'entoure")
         case .off: return L("Natural sound, no processing", "Son naturel, sans traitement")
         case .disconnected: return L("Turn the headphones on and connect them", "Allume le casque et connecte-le")

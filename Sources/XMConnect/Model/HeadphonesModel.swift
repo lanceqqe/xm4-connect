@@ -56,7 +56,7 @@ final class HeadphonesModel: ObservableObject {
     // MARK: Connection
 
     @Published private(set) var connection: SessionState = .connecting
-    @Published private(set) var deviceName = "WH-1000XM5"
+    @Published private(set) var deviceName = "WH-1000XM4"
     @Published private(set) var isDemo = false
     var isConnected: Bool { connection == .ready }
     var isConnecting: Bool { connection == .connecting }
@@ -89,6 +89,25 @@ final class HeadphonesModel: ObservableObject {
     @Published private(set) var autoPowerOffChoices: [AutoPowerOff] = HeadphonesModel.timerChoices
 
     var showsAutoPause: Bool { hasHeadsetAutoPause || hasWearingStatus }
+
+    // WH-1000XM4 extras
+    @Published private(set) var hasWindMode = false
+    @Published private(set) var hasSpeakToChatConfig = false
+    @Published private(set) var hasCustomButton = false
+    @Published private(set) var hasVoiceGuidance = false
+    @Published private(set) var hasSoundQualityPriority = false
+    @Published private(set) var hasNcOptimizer = false
+    @Published private(set) var hasDeviceInfo = false
+
+    /// The listening modes this headset offers, in the order the NC/AMB button cycles them.
+    var availableModes: [NcAmbMode] {
+        var modes: [NcAmbMode] = []
+        if hasNcChip { modes.append(.noiseCancelling) }
+        if hasWindMode { modes.append(.windNoiseReduction) }
+        modes.append(.ambient)
+        modes.append(.off)
+        return modes
+    }
 
     // MARK: Noise control
 
@@ -175,6 +194,54 @@ final class HeadphonesModel: ObservableObject {
             let value = dsee
             push { try await self.session.setDsee(value) }
         }
+    }
+
+    @Published var speakToChatConfig = SpeakToChatConfig(sensitivity: .auto, voiceFocus: false, timeout: .standard) {
+        didSet {
+            guard oldValue != speakToChatConfig, !suppressSend else { return }
+            let value = speakToChatConfig
+            push { try await self.session.setSpeakToChatConfig(value) }
+        }
+    }
+
+    @Published var customButton: CustomButtonFunction = .ambientSoundControl {
+        didSet {
+            guard oldValue != customButton, !suppressSend else { return }
+            let value = customButton
+            push { try await self.session.setCustomButton(value) }
+        }
+    }
+
+    @Published var voiceGuidance = true {
+        didSet {
+            guard oldValue != voiceGuidance, !suppressSend else { return }
+            let value = voiceGuidance
+            push { try await self.session.setVoiceGuidance(value) }
+        }
+    }
+
+    /// true: priority on sound quality, false: priority on a stable connection.
+    @Published var soundQualityPriority = true {
+        didSet {
+            guard oldValue != soundQualityPriority, !suppressSend else { return }
+            let value = soundQualityPriority
+            push { try await self.session.setSoundQualityPriority(value) }
+        }
+    }
+
+    @Published private(set) var codec: AudioCodec?
+    @Published private(set) var firmware: String?
+    @Published private(set) var optimizerStatus: NcOptimizerStatus = .notRunning
+    @Published private(set) var optimizerPressure: Double?
+    var optimizerRunning: Bool { optimizerStatus != .notRunning && optimizerStatus != .finished }
+
+    func startNcOptimizer() {
+        optimizerStatus = .checkingWearing
+        push { try await self.session.runNcOptimizer(true) }
+    }
+
+    func cancelNcOptimizer() {
+        push { try await self.session.runNcOptimizer(false) }
     }
 
     @Published var autoPowerOff: AutoPowerOff = .never {
@@ -295,6 +362,45 @@ final class HeadphonesModel: ObservableObject {
         case .whenTakenOff: return L("When taken off", "Quand je le retire")
         case .never: return L("Never", "Jamais")
         default: return String(format: "0x%02X", timer.rawValue)
+        }
+    }
+
+    static func name(of sensitivity: SpeakToChatSensitivity) -> String {
+        switch sensitivity {
+        case .auto: return L("Auto", "Auto")
+        case .high: return L("High", "Haute")
+        case .low: return L("Low", "Basse")
+        }
+    }
+
+    static func name(of timeout: SpeakToChatTimeout) -> String {
+        switch timeout {
+        case .short: return L("Short (15 s)", "Court (15 s)")
+        case .standard: return L("Standard (30 s)", "Standard (30 s)")
+        case .long: return L("Long (1 min)", "Long (1 min)")
+        case .off: return L("Don't end automatically", "Ne pas arrêter")
+        }
+    }
+
+    static func name(of function: CustomButtonFunction) -> String {
+        switch function {
+        case .ambientSoundControl: return L("Ambient Sound Control", "Contrôle du son ambiant")
+        case .googleAssistant: return "Google Assistant"
+        case .amazonAlexa: return "Amazon Alexa"
+        }
+    }
+
+    var optimizerText: String {
+        switch optimizerStatus {
+        case .checkingWearing: return L("Checking how they sit…", "Vérification du port…")
+        case .measuringPressure: return L("Measuring air pressure…", "Mesure de la pression…")
+        case .analyzing: return L("Analysing…", "Analyse…")
+        case .finished: return L("Optimised", "Optimisé")
+        case .notRunning:
+            if let optimizerPressure {
+                return String(format: L("Last run: %.1f atm", "Dernier passage : %.1f atm"), optimizerPressure)
+            }
+            return L("Tunes NC to your head and the air pressure", "Adapte la réduction de bruit à ta tête et à la pression")
         }
     }
 
@@ -456,7 +562,19 @@ final class HeadphonesModel: ObservableObject {
         hasWearingStatus = caps.hasWearingStatus
         hasDsee = caps.hasDsee
         hasAutoPowerOff = caps.autoPowerOffWearingDetection != nil
+        hasWindMode = caps.hasWindMode
+        hasSpeakToChatConfig = caps.hasSpeakToChatConfig
+        hasCustomButton = caps.hasCustomButton
+        hasVoiceGuidance = caps.hasVoiceGuidance
+        hasSoundQualityPriority = caps.hasSoundQualityPriority
+        hasNcOptimizer = caps.hasNcOptimizer
+        hasDeviceInfo = caps.hasDeviceInfo
+        codec = nil
+        firmware = nil
+        optimizerStatus = .notRunning
+        optimizerPressure = nil
         var timers = Self.timerChoices
+        if !caps.hasAutoPowerOff15Minutes { timers.removeAll { $0 == .after15Minutes } }
         if caps.autoPowerOffWearingDetection == true { timers.insert(.whenTakenOff, at: 0) }
         autoPowerOffChoices = timers
         eqAvailable = true
@@ -527,6 +645,22 @@ final class HeadphonesModel: ObservableObject {
             autoPowerOff = value
         case .wearing(let state):
             applyWearing(state)
+        case .speakToChatConfig(let config):
+            speakToChatConfig = config
+        case .customButton(let function):
+            customButton = function
+        case .voiceGuidance(let enabled):
+            voiceGuidance = enabled
+        case .soundQualityPriority(let quality):
+            soundQualityPriority = quality
+        case .codec(let value):
+            codec = value
+        case .firmware(let value):
+            firmware = value
+        case .ncOptimizerStatus(let status):
+            optimizerStatus = status
+        case .ncOptimizerPressure(let pressure):
+            optimizerPressure = pressure
         case .protocolInfo, .supportFunctions:
             break // handshake-only, consumed by the session
         }

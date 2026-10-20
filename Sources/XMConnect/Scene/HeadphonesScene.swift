@@ -293,6 +293,9 @@ final class SceneEngine: NSObject, SCNSceneRendererDelegate, @unchecked Sendable
         switch target.look {
         case .noiseCancelling:
             wantShield = 1; wantFlow = 1; wantEnd = Self.shieldRadius; wantGlow = 2.4
+        case .wind:
+            // A lighter shield: gusts still drift in, but most of them break on it.
+            wantShield = 0.55; wantFlow = 0.8; wantEnd = Self.shieldRadius; wantGlow = 2.1
         case .ambient:
             wantFlow = 0.45 + 0.55 * target.level; wantEnd = 0.45
             wantRings = 0.35 + 0.65 * target.level; wantGlow = 2.0

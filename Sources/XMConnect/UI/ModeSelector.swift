@@ -1,7 +1,7 @@
 import SwiftUI
 import SonyProtocolKit
 
-/// Three big tiles: Noise cancelling / Ambient / Off. The selected tile carries the mode
+/// Big tiles: Noise cancelling / Wind / Ambient / Off. The selected tile carries the mode
 /// gradient, which slides between tiles; hovering tilts a tile in 3D toward the pointer.
 struct ModeSelector: View {
     @ObservedObject var model: HeadphonesModel
@@ -16,13 +16,21 @@ struct ModeSelector: View {
     }
 
     private var items: [Item] {
-        var list: [Item] = []
-        if model.hasNcChip {
-            list.append(Item(mode: .noiseCancelling, icon: "shield.lefthalf.filled", title: L("Noise Canceling", "Anti-bruit")))
+        // Four tiles share the width on the XM4, so the noise-cancelling label gets shorter.
+        let compact = model.availableModes.count > 3
+        return model.availableModes.map { mode in
+            switch mode {
+            case .noiseCancelling:
+                return Item(mode: mode, icon: "shield.lefthalf.filled",
+                            title: compact ? L("NC", "Anti-bruit") : L("Noise Canceling", "Anti-bruit"))
+            case .windNoiseReduction:
+                return Item(mode: mode, icon: "wind", title: L("Wind", "Vent"))
+            case .ambient:
+                return Item(mode: mode, icon: "ear", title: L("Ambient", "Ambiant"))
+            case .off:
+                return Item(mode: mode, icon: "circle.slash", title: L("Off", "Désactivé"))
+            }
         }
-        list.append(Item(mode: .ambient, icon: "ear", title: L("Ambient", "Ambiant")))
-        list.append(Item(mode: .off, icon: "circle.slash", title: L("Off", "Désactivé")))
-        return list
     }
 
     var body: some View {

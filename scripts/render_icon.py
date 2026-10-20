@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Renders the XM Connect app icon (all macOS iconset sizes) with Pillow + NumPy.
+"""Renders the XM4 Connect app icon (all macOS iconset sizes) with Pillow + NumPy.
 
     python3 scripts/render_icon.py
 
@@ -231,8 +231,8 @@ def render_dmg_background(master):
         small = ImageFont.truetype("DejaVuSans.ttf", 12)
     except OSError:
         font = small = None
-    d.text((w / 2, 320), "Drag XM Connect into Applications", fill=(40, 36, 70, 230), font=font, anchor="mm")
-    d.text((w / 2, 344), "Glisse XM Connect dans Applications", fill=(40, 36, 70, 150), font=small, anchor="mm")
+    d.text((w / 2, 320), "Drag XM4 Connect into Applications", fill=(40, 36, 70, 230), font=font, anchor="mm")
+    d.text((w / 2, 344), "Glisse XM4 Connect dans Applications", fill=(40, 36, 70, 150), font=small, anchor="mm")
     return bg
 
 

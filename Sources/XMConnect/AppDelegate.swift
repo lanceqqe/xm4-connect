@@ -13,7 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Log.echoToConsole = CommandLine.arguments.contains("--verbose")
         let startInDemo = CommandLine.arguments.contains("--demo")
-        Log.info("XM Connect starting\(startInDemo ? " (demo)" : "")")
+        Log.info("XM4 Connect starting\(startInDemo ? " (demo)" : "")")
 
         let settings = AppSettings()
         let session: HeadphonesControlling = startInDemo ? DemoSession() : HeadphonesSession()

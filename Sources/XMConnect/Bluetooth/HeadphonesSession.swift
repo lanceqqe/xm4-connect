@@ -47,6 +47,17 @@ struct DeviceCapabilities {
     var autoPowerOffWearingDetection: Bool?
     /// The headset can report whether it is worn (table 2).
     var hasWearingStatus = false
+    /// Protocol-v1 devices (WH-1000XM4) have no 15-minute timer.
+    var hasAutoPowerOff15Minutes = true
+
+    // WH-1000XM4 extras.
+    var hasWindMode = false
+    var hasSpeakToChatConfig = false
+    var hasCustomButton = false
+    var hasVoiceGuidance = false
+    var hasSoundQualityPriority = false
+    var hasNcOptimizer = false
+    var hasDeviceInfo = false
 }
 
 /// Everything the view model needs from a headset. The real Bluetooth session and the demo
@@ -69,6 +80,11 @@ protocol HeadphonesControlling: AnyObject {
     func setAutoPause(_ enabled: Bool) async throws
     func setDsee(_ enabled: Bool) async throws
     func setAutoPowerOff(_ value: AutoPowerOff) async throws
+    func setSpeakToChatConfig(_ config: SpeakToChatConfig) async throws
+    func setCustomButton(_ function: CustomButtonFunction) async throws
+    func setVoiceGuidance(_ enabled: Bool) async throws
+    func setSoundQualityPriority(_ quality: Bool) async throws
+    func runNcOptimizer(_ start: Bool) async throws
 }
 
 /// Reconnect loop with backoff, init handshake, capability discovery, and ACK bookkeeping with
@@ -94,6 +110,8 @@ final class HeadphonesSession: HeadphonesControlling {
     private var capabilities: DeviceCapabilities?
     private var deviceName = "Sony Headphones"
     private var supportsTable2 = false
+    /// The connected headset speaks MDR protocol v1 (WH-1000XM4).
+    private var isV1 = false
     /// Set when the headset ignores a table-2 query, so we stop asking on this connection.
     private var table2Unresponsive = false
     private var runTask: Task<Void, Never>?
@@ -144,6 +162,7 @@ final class HeadphonesSession: HeadphonesControlling {
 
                 let found = try RFCOMMClient.findDevice()
                 deviceName = found.name.isEmpty ? "Sony Headphones" : found.name
+                isV1 = RFCOMMClient.speaksV1(found.device)
 
                 // Don't open an MDR channel unless the Mac already holds a baseband link to the
                 // headset. Opening one forces the link up, and a headset that isn't connected
@@ -226,6 +245,14 @@ final class HeadphonesSession: HeadphonesControlling {
         }
         try Task.checkCancellation()
 
+        if isV1 {
+            let caps = Self.v1Capabilities(deviceName: deviceName)
+            capabilities = caps
+            onCapabilities?(caps)
+            try await runCapabilityQueries(caps)
+            return
+        }
+
         supportFunctionsWaiter.arm()
         try await sendCommand(Commands.getSupportFunctions())
         let functions = try await supportFunctionsWaiter.wait(timeout: Self.handshakeTimeout) {
@@ -296,6 +323,28 @@ final class HeadphonesSession: HeadphonesControlling {
         return caps
     }
 
+    /// v1 has no support-function list worth trusting; this is the WH-1000XM4's feature set.
+    private static func v1Capabilities(deviceName: String) -> DeviceCapabilities {
+        // ncVariant only flags "has noise controls" here; v1 commands ignore it.
+        var caps = DeviceCapabilities(
+            ncVariant: .dualSeamless, hasNcMode: true, batteries: [.single],
+            hasEq: true, hasPowerOff: true, deviceName: deviceName)
+        caps.hasSpeakToChat = true
+        caps.hasAutoPause = true
+        caps.hasDsee = true
+        caps.autoPowerOffWearingDetection = true
+        caps.hasAutoPowerOff15Minutes = false
+        caps.hasWindMode = true
+        caps.hasSpeakToChatConfig = true
+        caps.hasCustomButton = true
+        caps.hasVoiceGuidance = true
+        caps.hasSoundQualityPriority = true
+        caps.hasNcOptimizer = true
+        caps.hasDeviceInfo = true
+        Log.info("Protocol v1 device; using fixed WH-1000XM4 capabilities")
+        return caps
+    }
+
     private func runCapabilityQueries(_ caps: DeviceCapabilities) async throws {
         let expectedClient = client
         try await queryLock.withLock {
@@ -306,6 +355,31 @@ final class HeadphonesSession: HeadphonesControlling {
 
     private func queryCapabilities(_ caps: DeviceCapabilities, expectedClient: RFCOMMClient?) async throws {
         var queries: [[UInt8]] = []
+        if isV1 {
+            queries = [
+                CommandsV1.getNcAmb(), CommandsV1.getEq(), CommandsV1.getBattery(),
+                CommandsV1.getSpeakToChat(), CommandsV1.getSpeakToChatConfig(),
+                CommandsV1.getAutoPause(), CommandsV1.getDsee(), CommandsV1.getAutoPowerOff(),
+                CommandsV1.getSoundQualityPriority(), CommandsV1.getCustomButton(),
+                CommandsV1.getNcOptimizerState(), CommandsV1.getCodec(), CommandsV1.getFirmware(),
+            ]
+            for query in queries {
+                guard client === expectedClient else { throw TransportError.notConnected }
+                try await sendCommand(query)
+            }
+            // Voice guidance lives in table 2: optional, never worth the connection.
+            if !table2Unresponsive {
+                guard client === expectedClient else { throw TransportError.notConnected }
+                do {
+                    try await sendCommand(CommandsV1.getVoiceGuidance(), type: .dataMdrNo2, essential: false)
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    table2Unresponsive = true
+                }
+            }
+            return
+        }
         if let variant = caps.ncVariant { queries.append(Commands.getNcAmb(variant)) }
         if caps.hasEq {
             queries.append(Commands.getEqStatus())
@@ -357,7 +431,9 @@ final class HeadphonesSession: HeadphonesControlling {
                 Log.info("ACK send failed: \(error.localizedDescription)")
             }
             let isTable2 = frame.type == .dataMdrNo2
-            let parsed = isTable2 ? PayloadParser.parseTable2(frame.payload) : PayloadParser.parse(frame.payload)
+            let parsed = isV1
+                ? (isTable2 ? PayloadParserV1.parseTable2(frame.payload) : PayloadParserV1.parse(frame.payload))
+                : (isTable2 ? PayloadParser.parseTable2(frame.payload) : PayloadParser.parse(frame.payload))
             guard let event = parsed else {
                 Log.debug("Unhandled \(isTable2 ? "table-2 " : "")payload \(frame.payload.hexString)")
                 return
@@ -437,17 +513,26 @@ final class HeadphonesSession: HeadphonesControlling {
     // the connected device announced.
     func setNcAmb(mode: NcAmbMode, ambientLevel: Int, focusOnVoice: Bool) async throws {
         guard let variant = capabilities?.ncVariant else { throw SessionError.unsupportedNoiseControl }
+        if isV1 {
+            return try await sendCommand(
+                CommandsV1.setNcAmb(mode: mode, ambientLevel: ambientLevel, focusOnVoice: focusOnVoice))
+        }
         try await sendCommand(
             Commands.setNcAmb(variant, mode: mode, ambientLevel: ambientLevel, focusOnVoice: focusOnVoice))
     }
 
     func setEqPreset(_ preset: EqPreset) async throws {
+        if isV1 {
+            try await sendCommand(CommandsV1.setEqPreset(preset))
+            return try await sendCommand(CommandsV1.getEq())
+        }
         try await sendCommand(Commands.setEqPreset(preset))
         try await sendCommand(Commands.getEq()) // reference re-queries after a preset change
     }
 
     /// 6-band devices (XM5-class): Clear Bass + 5 bands.
     func setEqBands(preset: EqPreset, clearBass: Int, bands: [Int]) async throws {
+        if isV1 { return try await sendCommand(CommandsV1.setEqBands(clearBass: clearBass, bands: bands)) }
         try await sendCommand(Commands.setEqBands(preset, clearBass: clearBass, bands: bands))
     }
 
@@ -458,16 +543,22 @@ final class HeadphonesSession: HeadphonesControlling {
 
     // Device ACKs then drops the RFCOMM link; the reconnect loop's normal path handles the drop.
     func powerOff() async throws {
+        if isV1 { return try await sendCommand(CommandsV1.powerOff()) }
         try await sendCommand(Commands.powerOff())
     }
 
     func setSpeakToChat(_ enabled: Bool) async throws {
         guard capabilities?.hasSpeakToChat == true else { return }
+        if isV1 { return try await sendCommand(CommandsV1.setSpeakToChat(enabled)) }
         try await sendCommand(Commands.setSpeakToChat(enabled))
     }
 
     func setAutoPause(_ enabled: Bool) async throws {
         guard capabilities?.hasAutoPause == true else { return }
+        if isV1 {
+            try await sendCommand(CommandsV1.setAutoPause(enabled))
+            return try await sendCommand(CommandsV1.getAutoPause())
+        }
         try await sendCommand(Commands.setAutoPause(enabled))
         // Read it back, so the switch shows what the headset actually kept.
         try await sendCommand(Commands.getAutoPause())
@@ -475,6 +566,7 @@ final class HeadphonesSession: HeadphonesControlling {
 
     func setDsee(_ enabled: Bool) async throws {
         guard capabilities?.hasDsee == true else { return }
+        if isV1 { return try await sendCommand(CommandsV1.setDsee(enabled)) }
         try await sendCommand(Commands.setDsee(enabled))
     }
 
@@ -482,7 +574,36 @@ final class HeadphonesSession: HeadphonesControlling {
         guard let wearing = capabilities?.autoPowerOffWearingDetection else { return }
         // "When taken off" exists only on the wearing-detection variant.
         guard wearing || value != .whenTakenOff else { return }
+        if isV1 {
+            guard let payload = CommandsV1.setAutoPowerOff(value) else { return }
+            return try await sendCommand(payload)
+        }
         try await sendCommand(Commands.setAutoPowerOff(value, wearingDetection: wearing))
+    }
+
+    func setSpeakToChatConfig(_ config: SpeakToChatConfig) async throws {
+        guard isV1, capabilities?.hasSpeakToChatConfig == true else { return }
+        try await sendCommand(CommandsV1.setSpeakToChatConfig(config))
+    }
+
+    func setCustomButton(_ function: CustomButtonFunction) async throws {
+        guard isV1, capabilities?.hasCustomButton == true else { return }
+        try await sendCommand(CommandsV1.setCustomButton(function))
+    }
+
+    func setVoiceGuidance(_ enabled: Bool) async throws {
+        guard isV1, capabilities?.hasVoiceGuidance == true else { return }
+        try await sendCommand(CommandsV1.setVoiceGuidance(enabled), type: .dataMdrNo2)
+    }
+
+    func setSoundQualityPriority(_ quality: Bool) async throws {
+        guard isV1, capabilities?.hasSoundQualityPriority == true else { return }
+        try await sendCommand(CommandsV1.setSoundQualityPriority(quality))
+    }
+
+    func runNcOptimizer(_ start: Bool) async throws {
+        guard isV1, capabilities?.hasNcOptimizer == true else { return }
+        try await sendCommand(CommandsV1.runNcOptimizer(start))
     }
 
     func refresh() async throws {

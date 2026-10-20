@@ -27,6 +27,18 @@ public enum DeviceEvent: Equatable, Sendable {
 
     // Table 2
     case wearing(WearingState)
+
+    // WH-1000XM4 (protocol v1)
+    case speakToChatConfig(SpeakToChatConfig)
+    case customButton(CustomButtonFunction)
+    case voiceGuidance(enabled: Bool)
+    /// true: priority on sound quality (LDAC), false: priority on a stable connection.
+    case soundQualityPriority(Bool)
+    case codec(AudioCodec)
+    case firmware(String)
+    case ncOptimizerStatus(NcOptimizerStatus)
+    /// Atmospheric pressure measured by the last NC Optimizer run, in atm.
+    case ncOptimizerPressure(Double)
 }
 
 /// Whether the headset is on someone's head (table-2 WearingStatusCode).

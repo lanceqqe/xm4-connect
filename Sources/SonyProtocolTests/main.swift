@@ -9,5 +9,6 @@ runPayloadParserTests()
 runFrameReassemblerTests()
 runOptionsTests()
 runTable2Tests()
+runProtocolV1Tests()
 
 exit(Harness.summary())

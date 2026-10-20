@@ -3,6 +3,6 @@
 user=$(/usr/bin/stat -f%Su /dev/console)
 if [ -n "$user" ] && [ "$user" != "root" ] && [ "$user" != "loginwindow" ]; then
     uid=$(/usr/bin/id -u "$user")
-    /bin/launchctl asuser "$uid" /usr/bin/sudo -u "$user" /usr/bin/open -a "/Applications/XM Connect.app" --args --open || true
+    /bin/launchctl asuser "$uid" /usr/bin/sudo -u "$user" /usr/bin/open -a "/Applications/XM4 Connect.app" --args --open || true
 fi
 exit 0

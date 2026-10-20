@@ -101,14 +101,59 @@ struct ListeningTab: View {
                         .opacity(model.ambientControlsEnabled ? 1 : 0.45)
                     }
                 }
+                if model.hasNcOptimizer {
+                    Card {
+                        HStack(spacing: 10) {
+                            OptionLabel(icon: "gauge.with.dots.needle.33percent", title: "NC Optimizer",
+                                        detail: model.optimizerText)
+                            Spacer()
+                            if model.optimizerRunning {
+                                ProgressView().controlSize(.small)
+                                PillButton(icon: "xmark", title: L("Stop", "Arrêter")) { model.cancelNcOptimizer() }
+                            } else {
+                                PillButton(icon: "play.fill", title: L("Start", "Lancer")) { model.startNcOptimizer() }
+                            }
+                        }
+                        .disabled(!model.isConnected)
+                        .animation(.easeInOut(duration: 0.2), value: model.optimizerRunning)
+                    }
+                }
                 if model.hasSpeakToChat {
                     Card {
-                        Toggle(isOn: $model.speakToChat) {
-                            OptionLabel(icon: "bubble.left.and.bubble.right", title: "Speak-to-Chat",
-                                        detail: L("Pauses the music when you talk", "Met la musique en pause quand tu parles"))
+                        VStack(spacing: 12) {
+                            Toggle(isOn: $model.speakToChat) {
+                                OptionLabel(icon: "bubble.left.and.bubble.right", title: "Speak-to-Chat",
+                                            detail: L("Pauses the music when you talk", "Met la musique en pause quand tu parles"))
+                            }
+                            .toggleStyle(GlowToggleStyle(look: look))
+                            if model.hasSpeakToChatConfig && model.speakToChat {
+                                HStack {
+                                    OptionLabel(icon: "waveform.badge.mic", title: L("Voice detection", "Détection de la voix"))
+                                    Spacer()
+                                    ChoiceMenu(
+                                        current: HeadphonesModel.name(of: model.speakToChatConfig.sensitivity),
+                                        choices: SpeakToChatSensitivity.allCases.map { ($0, HeadphonesModel.name(of: $0)) },
+                                        selected: model.speakToChatConfig.sensitivity
+                                    ) { model.speakToChatConfig.sensitivity = $0 }
+                                }
+                                HStack {
+                                    OptionLabel(icon: "timer", title: L("End after", "Arrêter après"))
+                                    Spacer()
+                                    ChoiceMenu(
+                                        current: HeadphonesModel.name(of: model.speakToChatConfig.timeout),
+                                        choices: SpeakToChatTimeout.allCases.map { ($0, HeadphonesModel.name(of: $0)) },
+                                        selected: model.speakToChatConfig.timeout
+                                    ) { model.speakToChatConfig.timeout = $0 }
+                                }
+                                Toggle(isOn: $model.speakToChatConfig.voiceFocus) {
+                                    OptionLabel(icon: "person.wave.2", title: L("Voice focus", "Focus sur la voix"),
+                                                detail: L("While you chat", "Pendant la conversation"))
+                                }
+                                .toggleStyle(GlowToggleStyle(look: look))
+                            }
                         }
-                        .toggleStyle(GlowToggleStyle(look: look))
                         .disabled(!model.isConnected)
+                        .animation(.easeInOut(duration: 0.2), value: model.speakToChat)
                     }
                 }
                 if model.showsAutoPause {
@@ -193,6 +238,56 @@ struct OptionsTab: View {
                     }
                 }
 
+                if model.hasCustomButton || model.hasVoiceGuidance || model.hasSoundQualityPriority {
+                    Card {
+                        VStack(spacing: 12) {
+                            if model.hasCustomButton {
+                                HStack {
+                                    OptionLabel(icon: "button.programmable", title: L("Custom button", "Bouton Custom"))
+                                    Spacer()
+                                    ChoiceMenu(
+                                        current: HeadphonesModel.name(of: model.customButton),
+                                        choices: CustomButtonFunction.allCases.map { ($0, HeadphonesModel.name(of: $0)) },
+                                        selected: model.customButton
+                                    ) { model.customButton = $0 }
+                                }
+                            }
+                            if model.hasSoundQualityPriority {
+                                HStack {
+                                    OptionLabel(icon: "antenna.radiowaves.left.and.right",
+                                                title: L("Bluetooth", "Bluetooth"),
+                                                detail: L("Quality uses LDAC when the source has it",
+                                                          "La qualité utilise le LDAC si la source le gère"))
+                                    Spacer()
+                                    ChoiceMenu(
+                                        current: model.soundQualityPriority ? L("Sound quality", "Qualité du son") : L("Stable connection", "Connexion stable"),
+                                        choices: [(true, L("Sound quality", "Qualité du son")), (false, L("Stable connection", "Connexion stable"))],
+                                        selected: model.soundQualityPriority
+                                    ) { model.soundQualityPriority = $0 }
+                                }
+                            }
+                            if model.hasVoiceGuidance {
+                                Toggle(isOn: $model.voiceGuidance) {
+                                    OptionLabel(icon: "speaker.wave.2", title: L("Voice guidance", "Guidage vocal"),
+                                                detail: L("Spoken battery and mode prompts", "Annonces vocales de batterie et de mode"))
+                                }
+                                .toggleStyle(GlowToggleStyle(look: look))
+                            }
+                        }
+                        .disabled(!model.isConnected)
+                    }
+                }
+
+                if model.hasDeviceInfo && model.isConnected {
+                    Card {
+                        VStack(spacing: 8) {
+                            InfoRow(icon: "headphones", title: L("Model", "Modèle"), value: model.deviceName)
+                            InfoRow(icon: "cpu", title: L("Firmware", "Firmware"), value: model.firmware ?? "—")
+                            InfoRow(icon: "waveform", title: L("Codec", "Codec"), value: model.codec?.name ?? "—")
+                        }
+                    }
+                }
+
                 Card {
                     VStack(alignment: .leading, spacing: 10) {
                         OptionLabel(icon: "paintpalette", title: L("3D headphones finish", "Finition du casque 3D"))
@@ -236,8 +331,8 @@ struct OptionsTab: View {
                     }
                 }
 
-                Text(L("XM Connect is not affiliated with Sony. Protocol from the open-source projects sony-tray and SonyHeadphonesClient.",
-                       "XM Connect n'est pas affilié à Sony. Protocole issu des projets open source sony-tray et SonyHeadphonesClient."))
+                Text(L("XM4 Connect is not affiliated with Sony. A fork of XM Connect; protocol from sony-tray, SonyHeadphonesClient and Gadgetbridge.",
+                       "XM4 Connect n'est pas affilié à Sony. Fork de XM Connect ; protocole issu de sony-tray, SonyHeadphonesClient et Gadgetbridge."))
                     .font(.rounded(9.5))
                     .foregroundStyle(Theme.textTertiary)
                     .multilineTextAlignment(.center)
@@ -245,6 +340,24 @@ struct OptionsTab: View {
                     .padding(.top, 2)
             }
             .padding(.bottom, 8)
+        }
+    }
+}
+
+/// A read-only label/value line.
+private struct InfoRow: View {
+    let icon: String
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack {
+            OptionLabel(icon: icon, title: title)
+            Spacer()
+            Text(value)
+                .font(.rounded(12, .semibold))
+                .monospacedDigit()
+                .foregroundStyle(Theme.textSecondary)
         }
     }
 }
