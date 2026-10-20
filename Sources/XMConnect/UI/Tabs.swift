@@ -319,21 +319,6 @@ struct OptionsTab: View {
                 }
 
                 Card {
-                    VStack(alignment: .leading, spacing: 10) {
-                        OptionLabel(icon: "paintpalette", title: L("3D headphones finish", "Finition du casque 3D"))
-                        HStack(spacing: 10) {
-                            ForEach(HeadsetFinish.allCases) { finish in
-                                FinishSwatch(finish: finish, selected: settings.finish == finish, look: look) {
-                                    withAnimation(.spring(response: 0.3)) { settings.finish = finish }
-                                    Haptics.click()
-                                }
-                            }
-                        }
-                        .padding(.leading, 32)
-                    }
-                }
-
-                Card {
                     VStack(spacing: 12) {
                         HStack {
                             OptionLabel(icon: "globe", title: L("Language", "Langue"))
@@ -352,10 +337,6 @@ struct OptionsTab: View {
                         .toggleStyle(GlowToggleStyle(look: look))
                         Toggle(isOn: $settings.launchAtLogin) {
                             OptionLabel(icon: "power.circle", title: L("Open at login", "Ouvrir au démarrage du Mac"))
-                        }
-                        .toggleStyle(GlowToggleStyle(look: look))
-                        Toggle(isOn: $settings.reduceMotion) {
-                            OptionLabel(icon: "figure.walk.motion", title: L("Reduce motion", "Réduire les animations"))
                         }
                         .toggleStyle(GlowToggleStyle(look: look))
                     }
@@ -434,36 +415,5 @@ struct ChoiceMenu<ID: Hashable>: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-    }
-}
-
-private struct FinishSwatch: View {
-    let finish: HeadsetFinish
-    let selected: Bool
-    let look: ListeningLook
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Circle()
-                    .fill(
-                        RadialGradient(colors: [finish.body.color.opacity(0.85), finish.body.color, finish.cushion.color],
-                                       center: UnitPoint(x: 0.35, y: 0.3), startRadius: 1, endRadius: 16)
-                    )
-                    .frame(width: 26, height: 26)
-                    .overlay(Circle().strokeBorder(Color.white.opacity(0.2), lineWidth: 1))
-                    .padding(3)
-                    .overlay(
-                        Circle().strokeBorder(selected ? AnyShapeStyle(Theme.gradient(look)) : AnyShapeStyle(Color.clear),
-                                              lineWidth: 2)
-                    )
-                    .scaleEffect(selected ? 1.08 : 1)
-                Text(finish.name)
-                    .font(.rounded(9.5, selected ? .semibold : .regular))
-                    .foregroundStyle(selected ? Theme.textPrimary : Theme.textTertiary)
-            }
-        }
-        .buttonStyle(.plain)
     }
 }

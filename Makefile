@@ -26,7 +26,7 @@ KIT_SRC  := $(wildcard Sources/SonyProtocolKit/*.swift)
 APP_SRC  := $(shell find Sources/XMConnect -name '*.swift')
 TEST_SRC := $(wildcard Sources/SonyProtocolTests/*.swift)
 FLAGS    := -O
-FRAMEWORKS := -framework IOBluetooth -framework AppKit -framework SwiftUI -framework SceneKit \
+FRAMEWORKS := -framework IOBluetooth -framework AppKit -framework SwiftUI \
               -framework Combine -framework ServiceManagement -framework CoreAudio
 
 UNIVERSAL ?= 0

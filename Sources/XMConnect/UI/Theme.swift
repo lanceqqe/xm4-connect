@@ -3,7 +3,7 @@ import SwiftUI
 import SonyProtocolKit
 import simd
 
-/// One colour, usable from SwiftUI, AppKit and the SceneKit render loop.
+/// One colour, usable from SwiftUI and AppKit.
 struct RGB: Equatable {
     var r: Double, g: Double, b: Double
 
@@ -72,7 +72,7 @@ enum Theme {
     }
 
     static let panelWidth: CGFloat = 372
-    static let panelHeight: CGFloat = 664
+    static let panelHeight: CGFloat = 520
     static let corner: CGFloat = 26
     static let textPrimary = Color.white.opacity(0.94)
     static let textSecondary = Color.white.opacity(0.58)
@@ -81,48 +81,10 @@ enum Theme {
     static let cardStroke = Color.white.opacity(0.09)
 }
 
-/// Body colour of the 3D headset.
-enum HeadsetFinish: String, CaseIterable, Identifiable {
-    case black, silver, midnight, sand
-
-    var id: String { rawValue }
-
-    var name: String {
-        switch self {
-        case .black: return L("Black", "Noir")
-        case .silver: return L("Platinum", "Platine")
-        case .midnight: return L("Midnight", "Bleu nuit")
-        case .sand: return L("Sand", "Sable")
-        }
-    }
-
-    var body: RGB {
-        switch self {
-        case .black: return RGB(hex: 0x1C1D21)
-        case .silver: return RGB(hex: 0xC9C6BF)
-        case .midnight: return RGB(hex: 0x1E2740)
-        case .sand: return RGB(hex: 0xD8C7AE)
-        }
-    }
-
-    var cushion: RGB {
-        switch self {
-        case .black: return RGB(hex: 0x111114)
-        case .silver: return RGB(hex: 0x8F8C86)
-        case .midnight: return RGB(hex: 0x141A2C)
-        case .sand: return RGB(hex: 0xA8957A)
-        }
-    }
-}
-
 /// Small persisted preferences.
 @MainActor
 final class AppSettings: ObservableObject {
     private let defaults = UserDefaults.standard
-
-    @Published var finish: HeadsetFinish {
-        didSet { defaults.set(finish.rawValue, forKey: "finish") }
-    }
 
     @Published var showBatteryInMenuBar: Bool {
         didSet { defaults.set(showBatteryInMenuBar, forKey: "showBatteryInMenuBar") }
@@ -145,10 +107,6 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(connectVolume, forKey: "connectVolume") }
     }
 
-    @Published var reduceMotion: Bool {
-        didSet { defaults.set(reduceMotion, forKey: "reduceMotion") }
-    }
-
     @Published var launchAtLogin: Bool {
         didSet {
             guard oldValue != launchAtLogin else { return }
@@ -160,10 +118,7 @@ final class AppSettings: ObservableObject {
     init() {
         // A local: `self.defaults` cannot be read before every property is initialised.
         let defaults = UserDefaults.standard
-        finish = HeadsetFinish(rawValue: defaults.string(forKey: "finish") ?? "") ?? .black
         showBatteryInMenuBar = defaults.object(forKey: "showBatteryInMenuBar") as? Bool ?? true
-        reduceMotion = defaults.bool(forKey: "reduceMotion")
-            || NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         launchAtLogin = LaunchAtLogin.isEnabled
         volumeOnConnect = defaults.object(forKey: "volumeOnConnect") as? Bool ?? true
         connectVolume = defaults.object(forKey: "connectVolume") as? Double ?? 0.6

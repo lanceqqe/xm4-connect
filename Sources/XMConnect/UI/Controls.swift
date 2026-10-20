@@ -181,7 +181,6 @@ struct BatteryRing: View {
                                                         center: .center)),
                     style: StrokeStyle(lineWidth: 4, lineCap: .round))
                 .rotationEffect(.degrees(-90))
-                .shadow(color: (low ? Color.red : look.accent.1.color).opacity(0.5), radius: 4)
                 .animation(.spring(response: 0.9, dampingFraction: 0.8), value: fraction)
             VStack(spacing: -1) {
                 if charging {

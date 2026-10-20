@@ -5,7 +5,7 @@
 <h1 align="center">XM4 Connect</h1>
 
 <p align="center">
-  <b>Control your Sony WH-1000XM4 from the Mac menu bar — with a live 3D headset that reacts to every setting.</b>
+  <b>Control your Sony WH-1000XM4 from the Mac menu bar — light, native and fast.</b>
 </p>
 
 <p align="center">
@@ -24,7 +24,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshot-xm4.png" width="360" alt="XM4 Connect panel: 3D headset in wind noise reduction mode">
+  <img src="docs/screenshot-xm4.png" width="360" alt="XM4 Connect panel: noise cancelling mode, the four listening modes and the Listening tab">
   &nbsp;&nbsp;
   <img src="docs/options-xm4.png" width="360" alt="XM4 Connect Options tab: DSEE, auto power off, Custom button, Bluetooth quality, voice guidance">
 </p>
@@ -49,7 +49,7 @@ There is no account, no server, no telemetry and no Electron. It is a small nati
 
 | | |
 | --- | --- |
-| 🎧 **All listening modes** | Noise Cancelling, **Wind Noise Reduction**, Ambient Sound and Off. Pick one from the tiles or the right-click menu, or click the 3D headset to cycle through them |
+| 🎧 **All listening modes** | Noise Cancelling, **Wind Noise Reduction**, Ambient Sound and Off. Pick one from the tiles or the right-click menu, or click the mode header to cycle through them |
 | 🌬️ **Ambient sound** | Level 1–20 and Focus on Voice |
 | 🎯 **NC Optimizer** | Starts the optimizer, shows each step live and the measured air pressure |
 | 🎛️ **Equalizer** | All Sony presets plus Manual, Custom 1 and Custom 2. On the editable ones, drag the 5-band curve and the Clear Bass slider |
@@ -62,18 +62,17 @@ There is no account, no server, no telemetry and no Electron. It is a small nati
 | ⏲️ **Auto power off** | When taken off, 5 min to 3 h, or never |
 | 🔊 **Volume on connect** | macOS often brings the headphones back far too quiet. When they connect, the app sets the Mac's output volume to the level you choose (Options tab), then sets it again over the next 10 seconds, because macOS restores its remembered volume late |
 | 🔋 **Battery** | Level and charging state in the panel and, if you want, next to the menu bar icon |
-| 🪫 **Light on battery** | With the panel closed it sits at ~0 % CPU: the 3D scene and animations stop, and the headset is only polled for its battery (it announces every other change itself) |
+| 🪫 **Light on battery** | About 0 % CPU whether the panel is open or closed: no 3D scene and no continuous animations, and the headset is only polled for its battery (it announces every other change itself) |
 | ℹ️ **Device info** | Firmware version and the codec in use (SBC / AAC / LDAC) |
 | ⏻ **Power off** | Turn the headphones off from the Mac |
 | 🔄 **Two-way sync** | Change a mode with the button on the headphones and the app follows instantly |
 | 🔌 **Auto-reconnect** | Turn the headphones off and on again; the app finds them by itself |
 
-### The visual side
+### Interface
 
-- **A real-time 3D headset** built in code with SceneKit. It floats, spins under your pointer with inertia and spring physics, and does a full turn every time the mode changes.
-- **Noise cancelling** wraps it in a glowing energy bubble that sound particles burst against. **Wind** gets a lighter teal shield that lets some gusts through. **Ambient** lets the particles flow through to the ears.
-- **Colour follows the mode**: the ear-cup lights, rim light, bloom and the drifting background all change together.
-- **Four finishes**, **reduce motion**, English and French.
+- **A compact panel**: the current mode as a coloured badge, four mode tiles, then three tabs. No 3D scene and no continuous animations, so it costs next to nothing to keep open.
+- **Colour follows the mode**: violet for noise cancelling, teal for wind, amber for ambient, grey for off.
+- **English and French.**
 - **Demo mode**: a simulated WH-1000XM4, so you can try every control without headphones.
 
 ## Install
@@ -123,8 +122,7 @@ rm -rf ~/Library/Logs/XM4\ Connect
 | --- | --- |
 | Open the panel | **Left-click** the menu bar icon |
 | Quick actions (mode, demo, open at login, quit) | **Right-click** the menu bar icon |
-| Spin the 3D headset | **Drag** it |
-| Next listening mode | **Click** the 3D headset |
+| Next listening mode | **Click** the mode header |
 | Close the panel | **Esc**, or click anywhere else |
 | Turn the headphones off | **Turn off headphones** at the bottom, then confirm |
 | Logs, demo mode, quit | **⋯** button at the bottom right |
@@ -132,7 +130,7 @@ rm -rf ~/Library/Logs/XM4\ Connect
 The panel has three tabs:
 - **Listening**: ambient level, Focus on Voice, NC Optimizer, Speak-to-Chat and its settings, pause when taken off.
 - **Equalizer**: presets and the curve editor.
-- **Options**: DSEE Extreme, auto power off, Custom button, Bluetooth quality, voice guidance, volume on connect, device info, 3D finish, language, battery in the menu bar, open at login, reduce motion.
+- **Options**: DSEE Extreme, auto power off, Custom button, Bluetooth quality, voice guidance, volume on connect, device info, language, battery in the menu bar, open at login.
 
 ### Pause when taken off
 
@@ -227,7 +225,6 @@ Sources/
   XMConnect/
     Bluetooth/          IOBluetooth RFCOMM transport, session, reconnect loop
     Model/              app state, translations, demo headset, media pause, logging
-    Scene/              the 3D headset and its effects (SceneKit)
     UI/                 menu bar panel, controls, equalizer, tabs
 Resources/              Info.plist, localized InfoPlist.strings, app icon
 installer/              .pkg screens (EN/FR), install scripts, disk image background

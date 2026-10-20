@@ -2,8 +2,7 @@ import AppKit
 import SwiftUI
 import SonyProtocolKit
 
-/// Shared between the menu bar controller and SwiftUI: whether the panel is on screen, so the
-/// 3D scene and the animated background only render while visible.
+/// Shared between the menu bar controller and SwiftUI: whether the panel is on screen.
 @MainActor
 final class PanelState: ObservableObject {
     @Published var isVisible = false
@@ -16,20 +15,22 @@ struct PanelView: View {
     @ObservedObject var state: PanelState
     var onQuit: () -> Void
 
-    @State var nudge = 0
     @State var confirmPowerOff = false
 
     private var look: ListeningLook { ListeningLook(mode: model.mode, connected: model.isConnected) }
 
     var body: some View {
         ZStack {
-            AppBackground(look: look, animating: state.isVisible && !settings.reduceMotion)
+            PanelBackground(look: look)
 
             VStack(spacing: 0) {
                 header
                     .padding(.horizontal, 18)
                     .padding(.top, 16)
-                hero
+                modeHeader
+                    .padding(.horizontal, 18)
+                    .padding(.top, 14)
+                    .padding(.bottom, 12)
                 VStack(spacing: 12) {
                     ModeSelector(model: model, look: look)
                     TabBar(selection: $state.tab, look: look)
@@ -62,8 +63,7 @@ struct PanelView: View {
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
                 HStack(spacing: 6) {
-                    StatusDot(connected: model.isConnected, connecting: model.isConnecting, look: look,
-                              animating: state.isVisible && !settings.reduceMotion)
+                    StatusDot(connected: model.isConnected, connecting: model.isConnecting, look: look)
                     Text(model.statusText)
                         .font(.rounded(11.5, .medium))
                         .foregroundStyle(Theme.textSecondary)
@@ -82,40 +82,46 @@ struct PanelView: View {
         .animation(.spring(response: 0.4), value: model.isConnected)
     }
 
-    // MARK: Hero (3D)
+    // MARK: Mode
 
-    private var hero: some View {
-        ZStack(alignment: .bottomLeading) {
-            HeadphonesSceneView(
-                target: HeadphonesSceneController.Target(
-                    look: look,
-                    level: Float((model.ambientLevel - 1) / 19),
-                    focusOnVoice: model.focusOnVoice,
-                    finish: settings.finish,
-                    reduceMotion: settings.reduceMotion),
-                isActive: state.isVisible,
-                nudge: nudge,
-                onTap: cycleMode)
-                .frame(height: 206)
-                .help(L("Drag to spin · Click to change mode", "Glisse pour faire tourner · Clique pour changer de mode"))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(look.title)
-                    .font(.rounded(20, .heavy))
-                    .foregroundStyle(Theme.gradient(look))
-                Text(look.subtitle)
-                    .font(.rounded(11.5, .medium))
-                    .foregroundStyle(Theme.textSecondary)
+    /// The current mode: a gradient badge, its name and a one-line description. Clicking it
+    /// moves to the next mode, like the NC/AMB button on the headset.
+    private var modeHeader: some View {
+        Button(action: cycleMode) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle().fill(Theme.gradient(look))
+                    Image(systemName: modeIcon)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 42, height: 42)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(look.title)
+                        .font(.rounded(17, .bold))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text(look.subtitle)
+                        .font(.rounded(11.5, .medium))
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
             }
-            .id(look)
-            .transition(.asymmetric(
-                insertion: .move(edge: .bottom).combined(with: .opacity),
-                removal: .opacity))
-            .padding(.leading, 20)
-            .padding(.bottom, 8)
-            .allowsHitTesting(false)
+            .contentShape(Rectangle())
         }
-        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: look)
+        .buttonStyle(.plain)
+        .help(L("Click to change mode", "Clique pour changer de mode"))
+        .animation(.easeInOut(duration: 0.2), value: look)
+    }
+
+    private var modeIcon: String {
+        switch look {
+        case .noiseCancelling: return "shield.lefthalf.filled"
+        case .wind: return "wind"
+        case .ambient: return "ear"
+        case .off: return "circle.slash"
+        case .disconnected: return "headphones"
+        }
     }
 
     // MARK: Tabs
@@ -128,7 +134,7 @@ struct PanelView: View {
                 ListeningTab(model: model, look: look)
                     .transition(tabTransition)
             case .equalizer:
-                EqualizerView(model: model, look: look, onPresetChange: { nudge += 1 })
+                EqualizerView(model: model, look: look)
                     .transition(tabTransition)
             case .options:
                 OptionsTab(model: model, settings: settings, look: look)
@@ -204,75 +210,37 @@ extension Notification.Name {
     static let applyConnectVolume = Notification.Name("XMConnectApplyConnectVolume")
 }
 
-/// Pulsing connection dot. The pulse is driven by a pausable timeline rather than a
-/// `repeatForever` animation: SwiftUI keeps running those after the panel is ordered out, which
-/// cost a steady ~5 % CPU and a display-cycle wakeup every frame while the app sat idle.
+/// Connection dot.
 struct StatusDot: View {
     let connected: Bool
     let connecting: Bool
     let look: ListeningLook
-    var animating: Bool
 
     var body: some View {
         let color: Color = connected ? Color(red: 0.3, green: 0.9, blue: 0.55)
             : (connecting ? look.accent.0.color : Color(red: 1, green: 0.45, blue: 0.4))
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !animating)) { context in
-            // easeOut over a 1.6 s cycle, like the animation it replaces.
-            let phase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.6) / 1.6
-            let eased = animating ? 1 - pow(1 - phase, 2) : 1
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.35))
-                    .frame(width: 14, height: 14)
-                    .scaleEffect(0.4 + 0.6 * eased)
-                    .opacity(1 - eased)
-                Circle().fill(color).frame(width: 7, height: 7)
-            }
-        }
-        .frame(width: 14, height: 14)
+        Circle().fill(color).frame(width: 7, height: 7)
+            .frame(width: 10, height: 10)
     }
 }
 
-/// Dark glass with slowly drifting, blurred colour blobs tinted by the current mode.
-struct AppBackground: View {
+/// Dark glass with a soft, static tint of the current mode's colour at the top.
+struct PanelBackground: View {
     var look: ListeningLook
-    var animating: Bool
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !animating)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            ZStack {
-                LinearGradient(colors: [Color(red: 0.07, green: 0.07, blue: 0.10).opacity(0.72),
-                                        Color(red: 0.03, green: 0.03, blue: 0.05).opacity(0.86)],
-                               startPoint: .top, endPoint: .bottom)
-                Circle()
-                    .fill(look.accent.0.color)
-                    .frame(width: 260, height: 260)
-                    .offset(x: CGFloat(cos(t * 0.23) * 70 - 60), y: CGFloat(sin(t * 0.31) * 40 - 190))
-                    .blur(radius: 80)
-                    .opacity(0.45)
-                Circle()
-                    .fill(look.accent.1.color)
-                    .frame(width: 220, height: 220)
-                    .offset(x: CGFloat(sin(t * 0.19) * 80 + 80), y: CGFloat(cos(t * 0.27) * 50 - 90))
-                    .blur(radius: 80)
-                    .opacity(0.38)
-                Circle()
-                    .fill(look.accent.0.color)
-                    .frame(width: 200, height: 200)
-                    .offset(x: CGFloat(cos(t * 0.17) * 60), y: CGFloat(sin(t * 0.21) * 40 + 230))
-                    .blur(radius: 90)
-                    .opacity(0.22)
-            }
-            .animation(.easeInOut(duration: 0.8), value: look)
+        ZStack {
+            LinearGradient(colors: [Color(red: 0.07, green: 0.07, blue: 0.10).opacity(0.80),
+                                    Color(red: 0.03, green: 0.03, blue: 0.05).opacity(0.90)],
+                           startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [look.accent.0.color.opacity(0.22), .clear],
+                           startPoint: .top, endPoint: .center)
+                .animation(.easeInOut(duration: 0.4), value: look)
         }
         .clipShape(RoundedRectangle(cornerRadius: Theme.corner, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.corner, style: .continuous)
-                .strokeBorder(
-                    LinearGradient(colors: [Color.white.opacity(0.22), Color.white.opacity(0.04)],
-                                   startPoint: .top, endPoint: .bottom),
-                    lineWidth: 1)
+                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
         )
     }
 }

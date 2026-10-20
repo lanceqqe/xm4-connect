@@ -94,7 +94,6 @@ struct EQCurveShape: Shape {
 struct EqualizerView: View {
     @ObservedObject var model: HeadphonesModel
     var look: ListeningLook
-    var onPresetChange: () -> Void
 
     @State var activeBand: Int?
     @State var hoverBand: Int?
@@ -146,7 +145,6 @@ struct EqualizerView: View {
                 model.selectedPreset = preset
             }
             Haptics.click()
-            onPresetChange()
         } label: {
             HStack(spacing: 4) {
                 if preset >= .manual {
@@ -195,14 +193,10 @@ struct EqualizerView: View {
                 }
                 .stroke(Color.white.opacity(0.14), style: StrokeStyle(lineWidth: 1, dash: [3, 4]))
 
-                // Fill + glowing stroke
+                // Fill + stroke
                 EQCurveShape(values: values, maximum: maximum, inset: inset, closed: true)
                     .fill(LinearGradient(colors: [look.accent.0.color.opacity(0.32), look.accent.1.color.opacity(0.0)],
                                          startPoint: .top, endPoint: .bottom))
-                EQCurveShape(values: values, maximum: maximum, inset: inset)
-                    .stroke(Theme.gradient(look), style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                    .blur(radius: 8)
-                    .opacity(0.8)
                 EQCurveShape(values: values, maximum: maximum, inset: inset)
                     .stroke(LinearGradient(colors: [look.accent.0.color, look.accent.1.color],
                                            startPoint: .leading, endPoint: .trailing),
